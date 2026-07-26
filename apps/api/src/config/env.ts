@@ -9,6 +9,7 @@ const schema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32),
   ACCESS_TOKEN_TTL: z.enum(["5m", "10m", "15m", "30m"]).default("15m"),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  RESEND_API_KEY: z.string().min(1).optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().default(587),
   SMTP_USER: z.string().optional(),

@@ -14,11 +14,16 @@ Configure:
 - `WEB_ORIGIN`
 - independent high-entropy JWT secrets
 - a base64-encoded 32-byte `SETTINGS_ENCRYPTION_KEY`
-- SMTP settings
+- `RESEND_API_KEY` and a verified `SMTP_FROM` sender (or SMTP settings as a fallback)
 - `FILE_STORAGE=s3` and S3-compatible endpoint, bucket, region and credentials
 
 Use HTTPS for both applications. Keep `FILE_STORAGE=local` only for development; production
 deployments must use the S3-compatible adapter so files survive restarts and rolling releases.
+
+The checked-in Render Blueprint uses free instances only for an initial staging smoke test. Free
+Render Postgres expires after 30 days and has no backups, so upgrade the API and database before a
+commercial launch. On a paid API service, move `prisma migrate deploy` from `startCommand` to
+Render's `preDeployCommand`.
 
 ## Operations
 

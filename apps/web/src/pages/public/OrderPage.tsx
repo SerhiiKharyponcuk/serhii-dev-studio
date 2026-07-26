@@ -1,0 +1,243 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { orderSchema, projectTypes, type OrderInput } from "@serhii-dev/contracts";
+import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { api } from "../../lib/api";
+
+const stepFields: (keyof OrderInput)[][] = [
+  ["projectType"],
+  ["projectName", "companyName", "description", "requiredFeatures", "references"],
+  ["budgetRange", "preferredDeadline", "deadlineFlexible"],
+  ["name", "email", "telegram", "discord", "country"],
+  []
+];
+export function OrderPage() {
+  const [step, setStep] = useState(0);
+  const [files, setFiles] = useState<File[]>([]);
+  const [orderNumber, setOrderNumber] = useState<string>();
+  const {
+    register,
+    handleSubmit,
+    watch,
+    trigger,
+    formState: { errors, isSubmitting }
+  } = useForm<OrderInput>({
+    resolver: zodResolver(orderSchema),
+    defaultValues: { projectType: "Landing Page", deadlineFlexible: true }
+  });
+  const next = async () => {
+    if (await trigger(stepFields[step] ?? [])) setStep((s) => Math.min(5, s + 1));
+  };
+  const submit = handleSubmit(async (values) => {
+    try {
+      const { data } = await api.post<{
+        data: { id: string; orderNumber: string; uploadToken: string };
+      }>("/orders", values);
+      if (files.length) {
+        try {
+          const payload = new FormData();
+          files.forEach((file) => payload.append("files", file));
+          await api.post(`/orders/${data.data.id}/files`, payload, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              "X-Upload-Token": data.data.uploadToken
+            }
+          });
+        } catch {
+          toast.warning("The request was saved, but some files were not uploaded.");
+        }
+      }
+      setOrderNumber(data.data.orderNumber);
+      toast.success("Project request sent");
+    } catch {
+      toast.error("We could not send your request. Please try again.");
+    }
+  });
+  if (orderNumber)
+    return (
+      <section className="section">
+        <div className="shell glass card max-w-xl text-center">
+          <CheckCircle2 className="mx-auto text-emerald-300" size={48} />
+          <h1 className="mt-5 text-3xl font-bold">Request received</h1>
+          <p className="muted mt-3">
+            Your order number is <b className="text-white">{orderNumber}</b>. A confirmation will be
+            sent to your email.
+          </p>
+        </div>
+      </section>
+    );
+  return (
+    <section className="section">
+      <div className="shell max-w-3xl">
+        <p className="eyebrow">Project brief</p>
+        <h1 className="section-title mt-3">Let’s understand what you need.</h1>
+        <div className="mt-8 flex gap-2" aria-label="Form progress">
+          {Array.from({ length: 6 }, (_, i) => (
+            <i
+              key={i}
+              className={`h-1 flex-1 rounded-full ${i <= step ? "bg-indigo-500" : "bg-white/10"}`}
+            />
+          ))}
+        </div>
+        <form className="glass card mt-6" onSubmit={(event) => void submit(event)}>
+          {step === 0 && (
+            <fieldset>
+              <legend className="text-xl font-bold">1. Project type</legend>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {projectTypes.map((t) => (
+                  <label
+                    key={t}
+                    className="flex cursor-pointer gap-3 rounded-xl border border-white/10 p-4 hover:bg-white/5"
+                  >
+                    <input type="radio" value={t} {...register("projectType")} />
+                    {t}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
+          {step === 1 && (
+            <div className="grid gap-5">
+              <h2 className="text-xl font-bold">2. Project information</h2>
+              <Field label="Project name" error={errors.projectName?.message}>
+                <input className="input" {...register("projectName")} />
+              </Field>
+              <Field label="Company name">
+                <input className="input" {...register("companyName")} />
+              </Field>
+              <Field label="Project description" error={errors.description?.message}>
+                <textarea className="input" {...register("description")} />
+              </Field>
+              <Field label="Required features" error={errors.requiredFeatures?.message}>
+                <textarea className="input" {...register("requiredFeatures")} />
+              </Field>
+              <Field label="Reference websites">
+                <input className="input" {...register("references")} />
+              </Field>
+            </div>
+          )}
+          {step === 2 && (
+            <div className="grid gap-5">
+              <h2 className="text-xl font-bold">3. Budget and deadline</h2>
+              <Field label="Budget range" error={errors.budgetRange?.message}>
+                <select className="input" {...register("budgetRange")}>
+                  <option value="">Select range</option>
+                  <option>$750–$1,500</option>
+                  <option>$1,500–$3,500</option>
+                  <option>$3,500–$7,500</option>
+                  <option>$7,500+</option>
+                </select>
+              </Field>
+              <Field label="Preferred deadline">
+                <input className="input" type="date" {...register("preferredDeadline")} />
+              </Field>
+              <label className="flex gap-3">
+                <input type="checkbox" {...register("deadlineFlexible")} />
+                The deadline is flexible
+              </label>
+            </div>
+          )}
+          {step === 3 && (
+            <div className="grid gap-5 sm:grid-cols-2">
+              <h2 className="col-span-full text-xl font-bold">4. Contact details</h2>
+              <Field label="Name" error={errors.name?.message}>
+                <input className="input" {...register("name")} />
+              </Field>
+              <Field label="Email" error={errors.email?.message}>
+                <input className="input" type="email" {...register("email")} />
+              </Field>
+              <Field label="Telegram">
+                <input className="input" {...register("telegram")} />
+              </Field>
+              <Field label="Discord">
+                <input className="input" {...register("discord")} />
+              </Field>
+              <Field label="Country" error={errors.country?.message}>
+                <input className="input" {...register("country")} />
+              </Field>
+            </div>
+          )}
+          {step === 4 && (
+            <div>
+              <h2 className="text-xl font-bold">5. Project files</h2>
+              <p className="muted mt-3 text-sm">
+                Attach up to four PDF, image, text or ZIP files. Maximum 10 MB each.
+              </p>
+              <input
+                className="input mt-6"
+                type="file"
+                multiple
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.zip"
+                onChange={(event) => setFiles(Array.from(event.target.files ?? []).slice(0, 4))}
+              />
+              {files.length > 0 && (
+                <p className="muted mt-3 text-sm">
+                  {files.length} file{files.length === 1 ? "" : "s"} selected
+                </p>
+              )}
+            </div>
+          )}
+          {step === 5 && (
+            <div>
+              <h2 className="text-xl font-bold">6. Review and submit</h2>
+              <dl className="mt-6 grid gap-3 text-sm">
+                {Object.entries(watch()).map(([k, v]) => (
+                  <div
+                    key={k}
+                    className="grid gap-1 border-b border-white/8 pb-3 sm:grid-cols-[180px_1fr]"
+                  >
+                    <dt className="muted">{k}</dt>
+                    <dd>{String(v || "—")}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="muted mt-5 text-sm">
+                File attachments become available securely after the order is created.
+              </p>
+            </div>
+          )}
+          <div className="mt-8 flex justify-between">
+            <button
+              className="button button-ghost"
+              type="button"
+              disabled={step === 0}
+              onClick={() => setStep((s) => s - 1)}
+            >
+              <ArrowLeft size={16} />
+              Back
+            </button>
+            {step < 5 ? (
+              <button className="button button-primary" type="button" onClick={() => void next()}>
+                Continue
+                <ArrowRight size={16} />
+              </button>
+            ) : (
+              <button className="button button-primary" disabled={isSubmitting} type="submit">
+                {isSubmitting ? "Sending…" : "Send request"}
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+    </section>
+  );
+}
+function Field({
+  label,
+  error,
+  children
+}: {
+  label: string;
+  error?: string | undefined;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="label">
+      {label}
+      {children}
+      {error && <span className="text-xs text-red-300">{error}</span>}
+    </label>
+  );
+}

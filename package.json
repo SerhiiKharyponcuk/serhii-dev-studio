@@ -1,0 +1,38 @@
+{
+  "name": "serhii-dev-studio",
+  "type": "module",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @serhii-dev/web",
+    "dev:web": "npm run dev --workspace @serhii-dev/web",
+    "dev:api": "npm run dev --workspace @serhii-dev/api",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run build --workspace @serhii-dev/web && playwright test",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.0",
+    "eslint": "^10.8.0",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0",
+    "valibot": "1.4.2",
+    "vitest": "^4.1.10"
+  }
+}

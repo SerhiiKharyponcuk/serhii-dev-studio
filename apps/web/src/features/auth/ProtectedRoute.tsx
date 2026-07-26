@@ -1,0 +1,30 @@
+import { useQuery } from "@tanstack/react-query";
+import { Navigate, Outlet } from "react-router";
+import { api } from "../../lib/api";
+
+type CurrentUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: "CLIENT" | "ADMIN" | "SUPPORT";
+};
+export function ProtectedRoute({ admin = false }: { admin?: boolean }) {
+  const query = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: async () => {
+      const response = await api.get<{ data: CurrentUser }>("/auth/me");
+      return response.data.data;
+    },
+    retry: false
+  });
+  if (query.isPending)
+    return (
+      <div className="shell section">
+        <div className="h-28 animate-pulse rounded-3xl bg-white/5" />
+      </div>
+    );
+  if (query.isError) return <Navigate to="/login" replace />;
+  if (admin && !["ADMIN", "SUPPORT"].includes(query.data.role))
+    return <Navigate to="/dashboard" replace />;
+  return <Outlet context={{ user: query.data }} />;
+}

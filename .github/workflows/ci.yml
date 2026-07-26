@@ -1,0 +1,61 @@
+name: Quality and security
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: serhii_dev_studio_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/serhii_dev_studio_test
+      JWT_ACCESS_SECRET: ci-access-secret-with-at-least-32-characters
+      JWT_REFRESH_SECRET: ci-refresh-secret-with-at-least-32-characters
+      SETTINGS_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      WEB_ORIGIN: http://localhost:4173
+      VITE_API_URL: http://localhost:4000/api
+      VITE_SITE_URL: http://localhost:4173
+      RUN_DB_TESTS: "1"
+      SEED_ADMIN_EMAIL: admin-ci@example.test
+      SEED_ADMIN_PASSWORD: ci-admin-password-not-used-outside-ci
+      SEED_CLIENT_EMAIL: client-ci@example.test
+      SEED_CLIENT_PASSWORD: ci-client-password-not-used-outside-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate --workspace @serhii-dev/api
+      - run: npm run prisma:validate --workspace @serhii-dev/api
+      - run: npm run prisma:migrate:deploy --workspace @serhii-dev/api
+      - run: npm run prisma:seed --workspace @serhii-dev/api
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+      - run: npm run format:check
+      - run: npm run audit:prod
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- --workers=4

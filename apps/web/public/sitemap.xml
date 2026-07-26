@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>http://localhost:5173/</loc></url>
+  <url><loc>http://localhost:5173/about</loc></url>
+  <url><loc>http://localhost:5173/portfolio</loc></url>
+  <url><loc>http://localhost:5173/services</loc></url>
+  <url><loc>http://localhost:5173/pricing</loc></url>
+  <url><loc>http://localhost:5173/reviews</loc></url>
+  <url><loc>http://localhost:5173/faq</loc></url>
+  <url><loc>http://localhost:5173/contact</loc></url>
+  <url><loc>http://localhost:5173/order</loc></url>
+  <url><loc>http://localhost:5173/privacy</loc></url>
+  <url><loc>http://localhost:5173/terms</loc></url>
+  <url><loc>http://localhost:5173/cookies</loc></url>
+  <url><loc>http://localhost:5173/portfolio/waves-arcade</loc></url>
+  <url><loc>http://localhost:5173/portfolio/metro-shop</loc></url>
+  <url><loc>http://localhost:5173/portfolio/developer-portfolio</loc></url>
+  <url><loc>http://localhost:5173/portfolio/ip-information-website</loc></url>
+  <url><loc>http://localhost:5173/services/landing-page</loc></url>
+  <url><loc>http://localhost:5173/services/business-website</loc></url>
+  <url><loc>http://localhost:5173/services/portfolio-website</loc></url>
+  <url><loc>http://localhost:5173/services/online-shop</loc></url>
+  <url><loc>http://localhost:5173/services/admin-dashboard</loc></url>
+  <url><loc>http://localhost:5173/services/client-dashboard</loc></url>
+  <url><loc>http://localhost:5173/services/minecraft-store</loc></url>
+  <url><loc>http://localhost:5173/services/custom-web-application</loc></url>
+  <url><loc>http://localhost:5173/services/website-redesign</loc></url>
+  <url><loc>http://localhost:5173/services/website-maintenance</loc></url>
+</urlset>

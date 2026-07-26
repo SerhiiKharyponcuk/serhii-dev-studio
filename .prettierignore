@@ -1,0 +1,7 @@
+node_modules/
+**/dist/
+**/coverage/
+**/generated/
+**/migrations/
+*.png
+package-lock.json

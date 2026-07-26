@@ -1,0 +1,432 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CLIENT
+  ADMIN
+  SUPPORT
+}
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  BLOCKED
+  DISABLED
+}
+enum OrderStatus {
+  NEW
+  CONTACTED
+  DISCUSSION
+  ESTIMATION
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+enum ProjectStatus {
+  NEW
+  PLANNING
+  DESIGN
+  DEVELOPMENT
+  TESTING
+  REVIEW
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+enum PaymentStatus {
+  PENDING
+  WAITING_CONFIRMATION
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  VIEWED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+enum FileCategory {
+  REQUIREMENTS
+  DESIGN
+  CONTRACT
+  INVOICE
+  SOURCE_CODE
+  DOCUMENTATION
+  FINAL_DELIVERY
+  OTHER
+}
+enum AuthTokenType {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+}
+
+model User {
+  id String @id @default(cuid())
+  name String
+  email String @unique
+  passwordHash String
+  avatarUrl String?
+  telegram String?
+  discord String?
+  country String?
+  role Role @default(CLIENT)
+  status AccountStatus @default(PENDING)
+  emailVerifiedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  refreshTokens RefreshToken[]
+  authTokens AuthToken[]
+  orders Order[] @relation("ClientOrders")
+  assignedOrders Order[] @relation("AssignedOrders")
+  projects Project[] @relation("ClientProjects")
+  assignedProjects Project[] @relation("AssignedProjects")
+  messages Message[]
+  conversations Conversation[] @relation("ConversationParticipants")
+  files File[]
+  payments Payment[]
+  invoices Invoice[]
+  reviews Review[]
+  notifications Notification[]
+  auditLogs AuditLog[] @relation("AuditActor")
+  @@index([role, status])
+  @@index([deletedAt])
+}
+
+model AuthToken {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  type AuthTokenType
+  userId String
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId, type, expiresAt])
+}
+
+model RefreshToken {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  userId String
+  expiresAt DateTime
+  revokedAt DateTime?
+  replacedById String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId, expiresAt])
+}
+
+model Order {
+  id String @id @default(cuid())
+  orderNumber String @unique
+  projectType String
+  projectName String
+  companyName String?
+  description String
+  requiredFeatures String
+  references String?
+  budgetRange String
+  preferredDeadline DateTime?
+  deadlineFlexible Boolean @default(true)
+  contactName String
+  contactEmail String
+  telegram String?
+  discord String?
+  country String
+  status OrderStatus @default(NEW)
+  notes String?
+  clientId String?
+  assigneeId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  client User? @relation("ClientOrders",fields:[clientId],references:[id])
+  assignee User? @relation("AssignedOrders",fields:[assigneeId],references:[id])
+  project Project?
+  files File[]
+  @@index([status, createdAt])
+  @@index([clientId])
+}
+
+model Project {
+  id String @id @default(cuid())
+  name String
+  description String
+  status ProjectStatus @default(NEW)
+  progress Int @default(0)
+  budget Int
+  paid Int @default(0)
+  currency String @default("USD")
+  startDate DateTime?
+  deadline DateTime?
+  lastUpdateAt DateTime @default(now())
+  clientId String
+  assigneeId String?
+  orderId String? @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  client User @relation("ClientProjects",fields:[clientId],references:[id])
+  assignee User? @relation("AssignedProjects",fields:[assigneeId],references:[id])
+  order Order? @relation(fields:[orderId],references:[id])
+  stages ProjectStage[]
+  updates ProjectUpdate[]
+  conversations Conversation[]
+  files File[]
+  payments Payment[]
+  invoices Invoice[]
+  reviews Review[]
+  @@index([clientId, status])
+  @@index([assigneeId])
+}
+
+model ProjectStage {
+  id String @id @default(cuid())
+  projectId String
+  name String
+  status String
+  position Int
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+  @@unique([projectId, position])
+}
+
+model ProjectUpdate {
+  id String @id @default(cuid())
+  projectId String
+  title String
+  content String
+  createdAt DateTime @default(now())
+  project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+  @@index([projectId, createdAt])
+}
+
+model Conversation {
+  id String @id @default(cuid())
+  subject String
+  projectId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project Project? @relation(fields:[projectId],references:[id])
+  participants User[] @relation("ConversationParticipants")
+  messages Message[]
+  @@index([projectId])
+}
+
+model Message {
+  id String @id @default(cuid())
+  conversationId String
+  senderId String
+  content String
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  conversation Conversation @relation(fields:[conversationId],references:[id],onDelete:Cascade)
+  sender User @relation(fields:[senderId],references:[id])
+  attachments File[]
+  @@index([conversationId, createdAt])
+}
+
+model File {
+  id String @id @default(cuid())
+  name String
+  storageKey String @unique
+  mimeType String
+  size Int
+  category FileCategory @default(OTHER)
+  clientVisible Boolean @default(true)
+  uploaderId String?
+  projectId String?
+  orderId String?
+  messageId String?
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+  uploader User? @relation(fields:[uploaderId],references:[id])
+  project Project? @relation(fields:[projectId],references:[id])
+  order Order? @relation(fields:[orderId],references:[id])
+  message Message? @relation(fields:[messageId],references:[id])
+  paymentProofs Payment[] @relation("PaymentProof")
+  @@index([projectId, category])
+}
+
+model Payment {
+  id String @id @default(cuid())
+  paymentNumber String @unique
+  amount Int
+  currency String
+  purpose String
+  method String @default("MANUAL_BANK_TRANSFER")
+  status PaymentStatus @default(PENDING)
+  dueDate DateTime?
+  paidAt DateTime?
+  comment String?
+  clientId String
+  projectId String
+  proofFileId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  client User @relation(fields:[clientId],references:[id])
+  project Project @relation(fields:[projectId],references:[id])
+  proofFile File? @relation("PaymentProof",fields:[proofFileId],references:[id])
+  invoices Invoice[]
+  @@index([clientId, status])
+  @@index([projectId])
+}
+
+model Invoice {
+  id String @id @default(cuid())
+  invoiceNumber String @unique
+  clientName String
+  clientEmail String
+  description String
+  subtotal Int
+  tax Int @default(0)
+  total Int
+  currency String
+  dueDate DateTime
+  status InvoiceStatus @default(DRAFT)
+  paymentDetails String?
+  clientId String
+  projectId String
+  paymentId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  client User @relation(fields:[clientId],references:[id])
+  project Project @relation(fields:[projectId],references:[id])
+  payment Payment? @relation(fields:[paymentId],references:[id])
+  items InvoiceItem[]
+  @@index([clientId, status])
+}
+
+model InvoiceItem {
+  id String @id @default(cuid())
+  invoiceId String
+  description String
+  quantity Int @default(1)
+  unitPrice Int
+  total Int
+  invoice Invoice @relation(fields:[invoiceId],references:[id],onDelete:Cascade)
+}
+
+model Review {
+  id String @id @default(cuid())
+  rating Int
+  title String
+  message String
+  clientName String
+  clientAvatarUrl String?
+  status ReviewStatus @default(PENDING)
+  clientId String
+  projectId String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  client User @relation(fields:[clientId],references:[id])
+  project Project @relation(fields:[projectId],references:[id])
+  @@index([status, createdAt])
+}
+
+model Notification {
+  id String @id @default(cuid())
+  userId String
+  type String
+  title String
+  message String
+  data Json?
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId, readAt, createdAt])
+}
+
+model Service {
+  id String @id @default(cuid())
+  slug String @unique
+  name String
+  description String
+  features Json
+  deliveryTime String
+  startingPrice Int
+  currency String @default("USD")
+  active Boolean @default(true)
+  position Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+}
+
+model PortfolioProject {
+  id String @id @default(cuid())
+  slug String @unique
+  title String
+  description String
+  category String
+  technologies Json
+  challenge String?
+  solution String?
+  result String?
+  previewUrl String?
+  demoUrl String?
+  githubUrl String?
+  featured Boolean @default(false)
+  published Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+}
+
+model ContactRequest {
+  id String @id @default(cuid())
+  name String
+  email String
+  subject String
+  message String
+  status String @default("NEW")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, createdAt])
+}
+
+model Setting {
+  id String @id @default(cuid())
+  key String @unique
+  category String
+  value Json
+  encrypted Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([category])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  actorId String?
+  action String
+  entityType String
+  entityId String?
+  metadata Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  actor User? @relation("AuditActor",fields:[actorId],references:[id])
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+}

@@ -1,0 +1,9 @@
+{
+  "name": "Serhii Dev Studio",
+  "short_name": "Serhii Dev",
+  "description": "Modern websites and scalable web applications by Serhii Kharyponchuk.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070812",
+  "theme_color": "#070812"
+}

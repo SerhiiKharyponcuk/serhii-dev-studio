@@ -1,0 +1,238 @@
+import { createHash, randomBytes } from "node:crypto";
+import bcrypt from "bcrypt";
+import { Router } from "express";
+import type { Request, Response } from "express";
+import jwt from "jsonwebtoken";
+import { z } from "zod";
+import { env, isProduction } from "../../config/env.js";
+import { prisma } from "../../config/prisma.js";
+import { authenticate } from "../../middleware/auth.js";
+import { AppError, success } from "../../utils/http.js";
+import { sendAccountEmail } from "../../services/mail/mailer.js";
+
+const router = Router();
+const login = z.object({ email: z.string().email(), password: z.string().min(8).max(128) });
+const register = login.extend({ name: z.string().trim().min(2).max(100) });
+const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+const cookieBase = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? ("none" as const) : ("lax" as const),
+  path: "/"
+};
+const accessTtlMinutes = { "5m": 5, "10m": 10, "15m": 15, "30m": 30 } as const;
+const refreshCookie = (req: Request) => (req.cookies as Record<string, unknown>).refresh_token;
+async function issueOneTimeToken(
+  userId: string,
+  type: "PASSWORD_RESET" | "EMAIL_VERIFICATION",
+  ttlMs: number
+) {
+  const raw = randomBytes(32).toString("base64url");
+  await prisma.authToken.create({
+    data: { tokenHash: hash(raw), type, userId, expiresAt: new Date(Date.now() + ttlMs) }
+  });
+  return raw;
+}
+
+async function createSession(
+  user: { id: string; role: "CLIENT" | "ADMIN" | "SUPPORT" },
+  req: Request,
+  res: Response
+) {
+  const access = jwt.sign({ sub: user.id, role: user.role }, env.JWT_ACCESS_SECRET, {
+    expiresIn: env.ACCESS_TOKEN_TTL
+  });
+  const raw = randomBytes(48).toString("base64url");
+  const expiresAt = new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * 86_400_000);
+  await prisma.refreshToken.create({
+    data: {
+      tokenHash: hash(raw),
+      userId: user.id,
+      expiresAt,
+      ipAddress: req.ip ?? null,
+      userAgent: req.get("user-agent")?.slice(0, 500) ?? null
+    }
+  });
+  res.cookie("access_token", access, {
+    ...cookieBase,
+    maxAge: accessTtlMinutes[env.ACCESS_TOKEN_TTL] * 60 * 1000
+  });
+  res.cookie("refresh_token", raw, {
+    ...cookieBase,
+    path: "/api/auth",
+    maxAge: env.REFRESH_TOKEN_TTL_DAYS * 86_400_000
+  });
+}
+
+router.post("/register", async (req, res, next) => {
+  try {
+    const input = register.parse(req.body);
+    const exists = await prisma.user.findUnique({ where: { email: input.email.toLowerCase() } });
+    if (exists) throw new AppError(409, "Account already exists", "EMAIL_IN_USE");
+    const user = await prisma.user.create({
+      data: {
+        name: input.name,
+        email: input.email.toLowerCase(),
+        passwordHash: await bcrypt.hash(input.password, 12),
+        status: "ACTIVE"
+      }
+    });
+    const token = await issueOneTimeToken(user.id, "EMAIL_VERIFICATION", 24 * 60 * 60 * 1000);
+    await sendAccountEmail(
+      user.email,
+      "Verify your Serhii Dev Studio account",
+      `${env.WEB_ORIGIN}/verify-email?token=${encodeURIComponent(token)}`
+    ).catch(() => false);
+    await createSession(user, req, res);
+    return success(
+      res,
+      "Account created",
+      { user: { id: user.id, name: user.name, email: user.email, role: user.role } },
+      201
+    );
+  } catch (e) {
+    next(e);
+  }
+});
+router.post("/login", async (req, res, next) => {
+  try {
+    const input = login.parse(req.body);
+    const user = await prisma.user.findUnique({ where: { email: input.email.toLowerCase() } });
+    if (
+      !user ||
+      user.status !== "ACTIVE" ||
+      !(await bcrypt.compare(input.password, user.passwordHash))
+    )
+      throw new AppError(401, "Invalid email or password", "INVALID_CREDENTIALS");
+    await createSession(user, req, res);
+    return success(res, "Signed in", {
+      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+router.post("/refresh", async (req, res, next) => {
+  try {
+    const candidate = refreshCookie(req);
+    const raw = typeof candidate === "string" ? candidate : undefined;
+    if (!raw) throw new AppError(401, "Session expired", "SESSION_EXPIRED");
+    const stored = await prisma.refreshToken.findUnique({
+      where: { tokenHash: hash(raw) },
+      include: { user: true }
+    });
+    if (stored?.revokedAt) {
+      await prisma.refreshToken.updateMany({
+        where: { userId: stored.userId, revokedAt: null },
+        data: { revokedAt: new Date() }
+      });
+      throw new AppError(401, "Session expired", "SESSION_REUSE_DETECTED");
+    }
+    if (!stored || stored.expiresAt.getTime() < Date.now() || stored.user.status !== "ACTIVE")
+      throw new AppError(401, "Session expired", "SESSION_EXPIRED");
+    await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
+    await createSession(stored.user, req, res);
+    return success(res, "Session refreshed", null);
+  } catch (e) {
+    next(e);
+  }
+});
+router.post("/logout", async (req, res, next) => {
+  try {
+    const candidate = refreshCookie(req);
+    const raw = typeof candidate === "string" ? candidate : undefined;
+    if (raw)
+      await prisma.refreshToken.updateMany({
+        where: { tokenHash: hash(raw), revokedAt: null },
+        data: { revokedAt: new Date() }
+      });
+    res.clearCookie("access_token", cookieBase);
+    res.clearCookie("refresh_token", { ...cookieBase, path: "/api/auth" });
+    return success(res, "Signed out", null);
+  } catch (e) {
+    next(e);
+  }
+});
+router.post("/forgot", async (req, res, next) => {
+  try {
+    const input = z.object({ email: z.string().email() }).parse(req.body);
+    const user = await prisma.user.findUnique({ where: { email: input.email.toLowerCase() } });
+    if (user && user.status === "ACTIVE") {
+      await prisma.authToken.updateMany({
+        where: { userId: user.id, type: "PASSWORD_RESET", usedAt: null },
+        data: { usedAt: new Date() }
+      });
+      const token = await issueOneTimeToken(user.id, "PASSWORD_RESET", 30 * 60 * 1000);
+      await sendAccountEmail(
+        user.email,
+        "Reset your Serhii Dev Studio password",
+        `${env.WEB_ORIGIN}/reset-password?token=${encodeURIComponent(token)}`
+      ).catch(() => false);
+    }
+    return success(res, "If the account exists, reset instructions will be sent", null);
+  } catch (e) {
+    next(e);
+  }
+});
+router.post("/reset", async (req, res, next) => {
+  try {
+    const input = z
+      .object({ token: z.string().min(20), password: z.string().min(12).max(128) })
+      .parse(req.body);
+    const stored = await prisma.authToken.findUnique({ where: { tokenHash: hash(input.token) } });
+    if (
+      !stored ||
+      stored.type !== "PASSWORD_RESET" ||
+      stored.usedAt ||
+      stored.expiresAt.getTime() < Date.now()
+    )
+      throw new AppError(400, "Reset link is invalid or expired", "INVALID_TOKEN");
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: stored.userId },
+        data: { passwordHash: await bcrypt.hash(input.password, 12) }
+      }),
+      prisma.authToken.update({ where: { id: stored.id }, data: { usedAt: new Date() } }),
+      prisma.refreshToken.updateMany({
+        where: { userId: stored.userId, revokedAt: null },
+        data: { revokedAt: new Date() }
+      })
+    ]);
+    return success(res, "Password reset successfully", null);
+  } catch (e) {
+    next(e);
+  }
+});
+router.post("/verify-email", async (req, res, next) => {
+  try {
+    const input = z.object({ token: z.string().min(20) }).parse(req.body);
+    const stored = await prisma.authToken.findUnique({ where: { tokenHash: hash(input.token) } });
+    if (
+      !stored ||
+      stored.type !== "EMAIL_VERIFICATION" ||
+      stored.usedAt ||
+      stored.expiresAt.getTime() < Date.now()
+    )
+      throw new AppError(400, "Verification link is invalid or expired", "INVALID_TOKEN");
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: stored.userId }, data: { emailVerifiedAt: new Date() } }),
+      prisma.authToken.update({ where: { id: stored.id }, data: { usedAt: new Date() } })
+    ]);
+    return success(res, "Email verified", null);
+  } catch (e) {
+    next(e);
+  }
+});
+router.get("/me", authenticate, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findFirst({
+      where: { id: req.auth!.userId, deletedAt: null },
+      select: { id: true, name: true, email: true, role: true, status: true, avatarUrl: true }
+    });
+    if (!user) throw new AppError(404, "User not found");
+    return success(res, "Profile loaded", user);
+  } catch (e) {
+    next(e);
+  }
+});
+export { router as authRouter };

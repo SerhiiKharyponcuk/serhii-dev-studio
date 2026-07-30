@@ -2,12 +2,11 @@ services:
   - type: web
     name: serhii-dev-studio-api
     runtime: node
-    plan: starter
+    plan: free
     region: frankfurt
     rootDir: .
     buildCommand: npm ci && npm run prisma:generate --workspace @serhii-dev/api && npm run build --workspace @serhii-dev/api
-    preDeployCommand: npm run prisma:migrate:deploy --workspace @serhii-dev/api
-    startCommand: node apps/api/dist/src/server.js
+    startCommand: npm run prisma:migrate:deploy --workspace @serhii-dev/api && node apps/api/dist/src/server.js
     healthCheckPath: /api/ready
     maxShutdownDelaySeconds: 30
     autoDeployTrigger: checksPass
@@ -15,9 +14,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: serhii-dev-studio-db
-          property: connectionString
+        sync: false
       - key: WEB_ORIGIN
         sync: false
       - key: CORS_ALLOWED_ORIGINS
@@ -25,7 +22,7 @@ services:
       - key: COOKIE_DOMAIN
         sync: false
       - key: COOKIE_SAME_SITE
-        value: lax
+        value: none
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
@@ -56,14 +53,3 @@ services:
         sync: false
       - key: LOG_LEVEL
         value: info
-
-databases:
-  - name: serhii-dev-studio-db
-    plan: basic-256mb
-    diskSizeGB: 15
-    storageAutoscalingEnabled: true
-    region: frankfurt
-    databaseName: serhii_dev_studio
-    user: serhii_dev_studio
-    postgresMajorVersion: "17"
-    ipAllowList: []

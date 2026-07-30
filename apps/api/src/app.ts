@@ -53,11 +53,12 @@ app.get("/api/health", (_req, res) =>
     version: env.SERVICE_VERSION
   })
 );
-app.get("/api/ready", async (_req, res) => {
+app.get("/api/ready", async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     return success(res, "Service ready", { status: "ready" });
-  } catch {
+  } catch (error) {
+    req.log.error({ err: error }, "Database readiness check failed");
     return res.status(503).json({
       success: false,
       message: "Service is not ready",

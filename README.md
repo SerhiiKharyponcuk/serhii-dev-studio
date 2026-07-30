@@ -43,4 +43,7 @@ against a disposable PostgreSQL instance before deployment.
 
 Deploy `apps/web` to Vercel and `apps/api` to Render or Railway. Use managed PostgreSQL and an S3-compatible object store for production files. Configure `WEB_ORIGIN`, secrets, SMTP and database values through the hosting provider. Serve the frontend and API on HTTPS subdomains of the same parent domain where possible.
 
+Use `docs/production-runbook.md` for the release order, environment variables, domain/cookie
+configuration, monitoring, backups, restore drills and the public-launch checklist.
+
 No commit or push should be performed until the final QA and security report is reviewed.

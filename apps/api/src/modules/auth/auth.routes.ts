@@ -17,11 +17,14 @@ const hash = (value: string) => createHash("sha256").update(value).digest("hex")
 const cookieBase = {
   httpOnly: true,
   secure: isProduction,
-  sameSite: isProduction ? ("none" as const) : ("lax" as const),
-  path: "/"
+  sameSite: env.COOKIE_SAME_SITE,
+  path: "/",
+  ...(isProduction && env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {})
 };
 const accessTtlMinutes = { "5m": 5, "10m": 10, "15m": 15, "30m": 30 } as const;
 const refreshCookie = (req: Request) => (req.cookies as Record<string, unknown>).refresh_token;
+type SessionUser = { id: string; role: "CLIENT" | "ADMIN" | "SUPPORT" };
+
 async function issueOneTimeToken(
   userId: string,
   type: "PASSWORD_RESET" | "EMAIL_VERIFICATION",
@@ -34,34 +37,39 @@ async function issueOneTimeToken(
   return raw;
 }
 
-async function createSession(
-  user: { id: string; role: "CLIENT" | "ADMIN" | "SUPPORT" },
-  req: Request,
-  res: Response
-) {
+function prepareSession(user: SessionUser) {
   const access = jwt.sign({ sub: user.id, role: user.role }, env.JWT_ACCESS_SECRET, {
     expiresIn: env.ACCESS_TOKEN_TTL
   });
   const raw = randomBytes(48).toString("base64url");
   const expiresAt = new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * 86_400_000);
-  await prisma.refreshToken.create({
-    data: {
-      tokenHash: hash(raw),
-      userId: user.id,
-      expiresAt,
-      ipAddress: req.ip ?? null,
-      userAgent: req.get("user-agent")?.slice(0, 500) ?? null
-    }
-  });
-  res.cookie("access_token", access, {
+  return { access, raw, expiresAt };
+}
+
+function setSessionCookies(res: Response, session: ReturnType<typeof prepareSession>) {
+  res.cookie("access_token", session.access, {
     ...cookieBase,
     maxAge: accessTtlMinutes[env.ACCESS_TOKEN_TTL] * 60 * 1000
   });
-  res.cookie("refresh_token", raw, {
+  res.cookie("refresh_token", session.raw, {
     ...cookieBase,
     path: "/api/auth",
     maxAge: env.REFRESH_TOKEN_TTL_DAYS * 86_400_000
   });
+}
+
+async function createSession(user: SessionUser, req: Request, res: Response) {
+  const session = prepareSession(user);
+  await prisma.refreshToken.create({
+    data: {
+      tokenHash: hash(session.raw),
+      userId: user.id,
+      expiresAt: session.expiresAt,
+      ipAddress: req.ip ?? null,
+      userAgent: req.get("user-agent")?.slice(0, 500) ?? null
+    }
+  });
+  setSessionCookies(res, session);
 }
 
 router.post("/register", async (req, res, next) => {
@@ -74,7 +82,7 @@ router.post("/register", async (req, res, next) => {
         name: input.name,
         email: input.email.toLowerCase(),
         passwordHash: await bcrypt.hash(input.password, 12),
-        status: "ACTIVE"
+        status: "PENDING"
       }
     });
     const token = await issueOneTimeToken(user.id, "EMAIL_VERIFICATION", 24 * 60 * 60 * 1000);
@@ -83,10 +91,9 @@ router.post("/register", async (req, res, next) => {
       "Verify your Serhii Dev Studio account",
       `${env.WEB_ORIGIN}/verify-email?token=${encodeURIComponent(token)}`
     ).catch(() => false);
-    await createSession(user, req, res);
     return success(
       res,
-      "Account created",
+      "Account created. Check your email to verify it before signing in.",
       { user: { id: user.id, name: user.name, email: user.email, role: user.role } },
       201
     );
@@ -130,8 +137,36 @@ router.post("/refresh", async (req, res, next) => {
     }
     if (!stored || stored.expiresAt.getTime() < Date.now() || stored.user.status !== "ACTIVE")
       throw new AppError(401, "Session expired", "SESSION_EXPIRED");
-    await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
-    await createSession(stored.user, req, res);
+    const session = prepareSession(stored.user);
+    const rotated = await prisma.$transaction(async (transaction) => {
+      const claimed = await transaction.refreshToken.updateMany({
+        where: { id: stored.id, revokedAt: null, expiresAt: { gt: new Date() } },
+        data: { revokedAt: new Date() }
+      });
+      if (claimed.count !== 1) return false;
+      const replacement = await transaction.refreshToken.create({
+        data: {
+          tokenHash: hash(session.raw),
+          userId: stored.userId,
+          expiresAt: session.expiresAt,
+          ipAddress: req.ip ?? null,
+          userAgent: req.get("user-agent")?.slice(0, 500) ?? null
+        }
+      });
+      await transaction.refreshToken.update({
+        where: { id: stored.id },
+        data: { replacedById: replacement.id }
+      });
+      return true;
+    });
+    if (!rotated) {
+      await prisma.refreshToken.updateMany({
+        where: { userId: stored.userId, revokedAt: null },
+        data: { revokedAt: new Date() }
+      });
+      throw new AppError(401, "Session expired", "SESSION_REUSE_DETECTED");
+    }
+    setSessionCookies(res, session);
     return success(res, "Session refreshed", null);
   } catch (e) {
     next(e);
@@ -174,6 +209,27 @@ router.post("/forgot", async (req, res, next) => {
     next(e);
   }
 });
+router.post("/resend", async (req, res, next) => {
+  try {
+    const input = z.object({ email: z.string().email() }).parse(req.body);
+    const user = await prisma.user.findUnique({ where: { email: input.email.toLowerCase() } });
+    if (user?.status === "PENDING" && !user.deletedAt) {
+      await prisma.authToken.updateMany({
+        where: { userId: user.id, type: "EMAIL_VERIFICATION", usedAt: null },
+        data: { usedAt: new Date() }
+      });
+      const token = await issueOneTimeToken(user.id, "EMAIL_VERIFICATION", 24 * 60 * 60 * 1000);
+      await sendAccountEmail(
+        user.email,
+        "Verify your Serhii Dev Studio account",
+        `${env.WEB_ORIGIN}/verify-email?token=${encodeURIComponent(token)}`
+      ).catch(() => false);
+    }
+    return success(res, "If the account is awaiting verification, a new link will be sent", null);
+  } catch (e) {
+    next(e);
+  }
+});
 router.post("/reset", async (req, res, next) => {
   try {
     const input = z
@@ -187,17 +243,28 @@ router.post("/reset", async (req, res, next) => {
       stored.expiresAt.getTime() < Date.now()
     )
       throw new AppError(400, "Reset link is invalid or expired", "INVALID_TOKEN");
-    await prisma.$transaction([
-      prisma.user.update({
+    const passwordHash = await bcrypt.hash(input.password, 12);
+    await prisma.$transaction(async (transaction) => {
+      const claimed = await transaction.authToken.updateMany({
+        where: {
+          id: stored.id,
+          type: "PASSWORD_RESET",
+          usedAt: null,
+          expiresAt: { gt: new Date() }
+        },
+        data: { usedAt: new Date() }
+      });
+      if (claimed.count !== 1)
+        throw new AppError(400, "Reset link is invalid or expired", "INVALID_TOKEN");
+      await transaction.user.update({
         where: { id: stored.userId },
-        data: { passwordHash: await bcrypt.hash(input.password, 12) }
-      }),
-      prisma.authToken.update({ where: { id: stored.id }, data: { usedAt: new Date() } }),
-      prisma.refreshToken.updateMany({
+        data: { passwordHash }
+      });
+      await transaction.refreshToken.updateMany({
         where: { userId: stored.userId, revokedAt: null },
         data: { revokedAt: new Date() }
-      })
-    ]);
+      });
+    });
     return success(res, "Password reset successfully", null);
   } catch (e) {
     next(e);
@@ -214,10 +281,25 @@ router.post("/verify-email", async (req, res, next) => {
       stored.expiresAt.getTime() < Date.now()
     )
       throw new AppError(400, "Verification link is invalid or expired", "INVALID_TOKEN");
-    await prisma.$transaction([
-      prisma.user.update({ where: { id: stored.userId }, data: { emailVerifiedAt: new Date() } }),
-      prisma.authToken.update({ where: { id: stored.id }, data: { usedAt: new Date() } })
-    ]);
+    await prisma.$transaction(async (transaction) => {
+      const claimed = await transaction.authToken.updateMany({
+        where: {
+          id: stored.id,
+          type: "EMAIL_VERIFICATION",
+          usedAt: null,
+          expiresAt: { gt: new Date() }
+        },
+        data: { usedAt: new Date() }
+      });
+      if (claimed.count !== 1)
+        throw new AppError(400, "Verification link is invalid or expired", "INVALID_TOKEN");
+      const activated = await transaction.user.updateMany({
+        where: { id: stored.userId, status: "PENDING", deletedAt: null },
+        data: { emailVerifiedAt: new Date(), status: "ACTIVE" }
+      });
+      if (activated.count !== 1)
+        throw new AppError(400, "Verification link is invalid or expired", "INVALID_TOKEN");
+    });
     return success(res, "Email verified", null);
   } catch (e) {
     next(e);

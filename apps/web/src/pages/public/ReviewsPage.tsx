@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Star } from "lucide-react";
 import { api } from "../../lib/api";
+import { EmptyState, ErrorState, LoadingState } from "../../components/AsyncState";
 
 type Review = {
   id: string;
@@ -29,9 +30,12 @@ export function ReviewsPage() {
       </div>
       <div className="shell mt-12 grid-auto">
         {query.isPending ? (
-          <div className="h-40 animate-pulse rounded-3xl bg-white/5" />
+          <LoadingState title="Loading client reviews" />
         ) : query.isError ? (
-          <div className="glass card text-red-200">Reviews could not be loaded.</div>
+          <ErrorState
+            title="Unable to load reviews"
+            description="Please refresh the page or try again in a moment."
+          />
         ) : query.data?.length ? (
           query.data.map((review) => (
             <article className="glass card" key={review.id}>
@@ -52,12 +56,10 @@ export function ReviewsPage() {
             </article>
           ))
         ) : (
-          <div className="glass card">
-            <h2 className="font-bold">No published reviews yet</h2>
-            <p className="muted mt-2 text-sm">
-              Verified client feedback will appear here after moderation.
-            </p>
-          </div>
+          <EmptyState
+            title="No published reviews yet"
+            description="Verified client feedback will appear here after moderation."
+          />
         )}
       </div>
     </section>

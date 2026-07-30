@@ -13,7 +13,14 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
-      <Toaster theme="dark" richColors position="top-right" />
+      <Toaster
+        theme="dark"
+        richColors
+        closeButton
+        position="top-right"
+        duration={4500}
+        toastOptions={{ className: "studio-toast" }}
+      />
     </QueryClientProvider>
   </React.StrictMode>
 );

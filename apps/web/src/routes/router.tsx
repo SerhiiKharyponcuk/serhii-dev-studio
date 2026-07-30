@@ -1,10 +1,13 @@
 import { createBrowserRouter } from "react-router";
 import { lazy, Suspense } from "react";
 import { PublicLayout } from "../layouts/PublicLayout";
-import { HomePage } from "../pages/public/HomePage";
 import { ProtectedRoute } from "../features/auth/ProtectedRoute";
+import { LoadingState } from "../components/AsyncState";
 import type { ReactNode } from "react";
 
+const HomePage = lazy(async () => ({
+  default: (await import("../pages/public/HomePage")).HomePage
+}));
 const DashboardPage = lazy(async () => {
   const module = await import("../pages/dashboard/DashboardPage");
   return { default: module.DashboardPage };
@@ -35,7 +38,7 @@ const loadable = (content: ReactNode) => (
   <Suspense
     fallback={
       <div className="shell section">
-        <div className="h-40 animate-pulse rounded-3xl bg-white/5" />
+        <LoadingState />
       </div>
     }
   >
@@ -46,7 +49,7 @@ const dashboard = (admin = false) => (
   <Suspense
     fallback={
       <div className="shell section">
-        <div className="h-40 animate-pulse rounded-3xl bg-white/5" />
+        <LoadingState />
       </div>
     }
   >
@@ -58,7 +61,7 @@ export const router = createBrowserRouter([
   {
     element: <PublicLayout />,
     children: [
-      { path: "/", element: <HomePage /> },
+      { path: "/", element: loadable(<HomePage />) },
       { path: "/about", element: loadable(<AboutPage />) },
       { path: "/portfolio", element: loadable(<PortfolioPage />) },
       { path: "/portfolio/:slug", element: loadable(<ProjectPage />) },
@@ -72,6 +75,7 @@ export const router = createBrowserRouter([
       { path: "/login", element: loadable(<AuthPage mode="login" />) },
       { path: "/register", element: loadable(<AuthPage mode="register" />) },
       { path: "/forgot-password", element: loadable(<AuthPage mode="forgot" />) },
+      { path: "/resend-verification", element: loadable(<AuthPage mode="resend" />) },
       { path: "/reset-password", element: loadable(<AuthPage mode="reset" />) },
       { path: "/verify-email", element: loadable(<VerifyEmailPage />) },
       { path: "/privacy", element: loadable(<SimplePage kind="Privacy" />) },

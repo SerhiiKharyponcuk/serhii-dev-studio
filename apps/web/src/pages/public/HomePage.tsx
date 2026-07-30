@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ArrowRight, Code2, Layers3, Rocket, ShieldCheck } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Code2, Layers3, Rocket, ShieldCheck } from "lucide-react";
 import { Link } from "react-router";
 import { ProjectCard } from "../../components/ProjectCard";
 import { projects, services, site } from "../../config/site";
@@ -101,14 +101,24 @@ export function HomePage() {
             {services.slice(0, 6).map((s, i) => {
               const Icon = [Code2, Layers3, Rocket, ShieldCheck][i % 4]!;
               return (
-                <article key={s.slug} className="glass card">
+                <Link
+                  key={s.slug}
+                  className="glass card interactive-card group block"
+                  to={`/services/${s.slug}`}
+                >
                   <Icon className="text-indigo-300" />
-                  <h3 className="mt-7 text-lg font-bold">{s.name}</h3>
+                  <div className="mt-7 flex items-center justify-between gap-4">
+                    <h3 className="text-lg font-bold">{s.name}</h3>
+                    <ArrowUpRight
+                      className="text-[#727587] transition group-hover:text-white"
+                      size={18}
+                    />
+                  </div>
                   <p className="muted mt-2 text-sm leading-6">{s.description}</p>
                   <p className="mt-5 text-sm font-semibold">
                     Starting from ${s.price.toLocaleString()}
                   </p>
-                </article>
+                </Link>
               );
             })}
           </div>
@@ -142,7 +152,7 @@ export function HomePage() {
         </div>
       </section>
       <section className="section">
-        <div className="shell glass overflow-hidden rounded-[30px] p-8 text-center md:p-16">
+        <div className="shell glass overflow-hidden rounded-[28px] p-8 text-center md:p-16">
           <p className="eyebrow">Have a project in mind?</p>
           <h2 className="section-title mx-auto mt-4 max-w-3xl">
             Let’s turn it into a fast, thoughtful and scalable product.

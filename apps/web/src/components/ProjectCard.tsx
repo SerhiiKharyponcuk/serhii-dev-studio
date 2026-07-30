@@ -11,7 +11,11 @@ export function ProjectCard({ project }: { project: (typeof projects)[number] })
   };
   const pair = colors[project.slug] ?? ["#6366f1", "#a855f7"];
   return (
-    <article className="glass card group">
+    <Link
+      className="glass card interactive-card group block"
+      to={`/portfolio/${project.slug}`}
+      aria-label={`View ${project.title} case study`}
+    >
       <div
         className="project-art"
         style={{ "--a": pair[0], "--b": pair[1] } as React.CSSProperties}
@@ -23,13 +27,12 @@ export function ProjectCard({ project }: { project: (typeof projects)[number] })
           <h3 className="text-xl font-bold">{project.title}</h3>
           <p className="muted mt-2 text-sm leading-6">{project.description}</p>
         </div>
-        <Link
+        <span
           className="grid h-10 min-w-10 place-items-center rounded-full border border-white/10 transition group-hover:bg-white group-hover:text-black"
-          to={`/portfolio/${project.slug}`}
-          aria-label={`View ${project.title}`}
+          aria-hidden="true"
         >
           <ArrowUpRight size={18} />
-        </Link>
+        </span>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         {project.technologies.slice(0, 4).map((t) => (
@@ -38,6 +41,6 @@ export function ProjectCard({ project }: { project: (typeof projects)[number] })
           </span>
         ))}
       </div>
-    </article>
+    </Link>
   );
 }

@@ -3,6 +3,7 @@ import { Check, Download, Send, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { api } from "../../lib/api";
+import { EmptyState, ErrorState, LoadingLabel, LoadingState } from "../../components/AsyncState";
 
 type Project = {
   id: string;
@@ -81,22 +82,28 @@ const statusTone = (status: string) =>
       : ["DEVELOPMENT", "WAITING_CONFIRMATION", "REVIEW", "TESTING"].includes(status)
         ? "border-indigo-400/25 bg-indigo-400/10 text-indigo-200"
         : "border-amber-400/25 bg-amber-400/10 text-amber-100";
+const humanize = (value: string) => {
+  const normalized = value.replaceAll("_", " ").toLocaleLowerCase();
+  return normalized.charAt(0).toLocaleUpperCase() + normalized.slice(1);
+};
 
-function State({ pending, error, empty }: { pending: boolean; error: boolean; empty: boolean }) {
-  if (pending) return <div className="mt-7 h-32 animate-pulse rounded-3xl bg-white/5" />;
-  if (error)
-    return (
-      <div className="glass card mt-7 text-red-200">
-        This section could not be loaded. Try again shortly.
-      </div>
-    );
+function State({
+  pending,
+  error,
+  empty,
+  emptyTitle,
+  emptyDescription
+}: {
+  pending: boolean;
+  error: boolean;
+  empty: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
+}) {
+  if (pending) return <LoadingState className="mt-7" />;
+  if (error) return <ErrorState className="mt-7" />;
   if (empty)
-    return (
-      <div className="glass card mt-7">
-        <h2 className="font-bold">Nothing here yet</h2>
-        <p className="muted mt-2 text-sm">New activity will appear here automatically.</p>
-      </div>
-    );
+    return <EmptyState className="mt-7" title={emptyTitle} description={emptyDescription} />;
   return null;
 }
 export function ProjectsContent({ admin = false }: { admin?: boolean }) {
@@ -109,10 +116,10 @@ export function ProjectsContent({ admin = false }: { admin?: boolean }) {
     mutationFn: ({ id, data }: { id: string; data: { status?: string; progress?: number } }) =>
       api.patch(`/admin/projects/${id}`, data),
     onSuccess: () => {
-      toast.success("Project updated");
+      toast.success("Project updated.");
       void client.invalidateQueries({ queryKey: ["projects"] });
     },
-    onError: () => toast.error("Project could not be updated")
+    onError: () => toast.error("Couldn’t update the project. Try again.")
   });
   const state = <State pending={q.isPending} error={q.isError} empty={q.data?.length === 0} />;
   if (!q.data?.length) return state;
@@ -122,15 +129,20 @@ export function ProjectsContent({ admin = false }: { admin?: boolean }) {
         <article className="glass card" key={p.id}>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <span className={`pill ${statusTone(p.status)}`}>
-                {p.status.replaceAll("_", " ")}
-              </span>
+              <span className={`pill ${statusTone(p.status)}`}>{humanize(p.status)}</span>
               <h2 className="mt-4 text-xl font-bold">{p.name}</h2>
               <p className="muted mt-2 text-sm">{p.description}</p>
             </div>
             <b>{p.progress}%</b>
           </div>
-          <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/7">
+          <div
+            className="mt-5 h-2 overflow-hidden rounded-full bg-white/7"
+            role="progressbar"
+            aria-label={`${p.name} progress`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.min(100, p.progress)}
+          >
             <i
               className="block h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-400"
               style={{ width: `${Math.min(100, p.progress)}%` }}
@@ -237,10 +249,10 @@ export function PaymentsContent() {
       return api.post(`/client/payments/${payment.id}/paid`, { proofFileId });
     },
     onSuccess: () => {
-      toast.success("Payment sent for confirmation");
+      toast.success("Payment submitted for confirmation.");
       void client.invalidateQueries({ queryKey: ["payments"] });
     },
-    onError: () => toast.error("Payment status could not be updated")
+    onError: () => toast.error("Couldn’t update the payment. Try again.")
   });
   if (!q.data?.length) return <State pending={q.isPending} error={q.isError} empty={true} />;
   return (
@@ -271,7 +283,7 @@ export function PaymentsContent() {
           key={p.id}
         >
           <div>
-            <span className={`pill ${statusTone(p.status)}`}>{p.status.replaceAll("_", " ")}</span>
+            <span className={`pill ${statusTone(p.status)}`}>{humanize(p.status)}</span>
             <h2 className="mt-3 font-bold">{p.purpose}</h2>
             <p className="muted mt-1 text-sm">{p.paymentNumber}</p>
           </div>
@@ -298,7 +310,7 @@ export function PaymentsContent() {
                   disabled={paid.isPending}
                   onClick={() => paid.mutate(p)}
                 >
-                  {paid.isPending ? "Submitting…" : "I have paid"}
+                  {paid.isPending ? <LoadingLabel>Submitting</LoadingLabel> : "I have paid"}
                 </button>
               </div>
             )}
@@ -322,7 +334,7 @@ export function InvoicesContent() {
           key={i.id}
         >
           <div>
-            <span className={`pill ${statusTone(i.status)}`}>{i.status.replaceAll("_", " ")}</span>
+            <span className={`pill ${statusTone(i.status)}`}>{humanize(i.status)}</span>
             <h2 className="mt-3 font-bold">{i.invoiceNumber}</h2>
             <p className="muted mt-1 text-sm">{i.description}</p>
           </div>
@@ -361,19 +373,19 @@ export function AdminPaymentsContent() {
         dueDate: form.get("dueDate") ? new Date(formText(form, "dueDate")).toISOString() : undefined
       }),
     onSuccess: () => {
-      toast.success("Payment request created");
+      toast.success("Payment request created.");
       void client.invalidateQueries({ queryKey: ["admin-payments"] });
     },
-    onError: () => toast.error("Payment request could not be created")
+    onError: () => toast.error("Couldn’t create the payment request. Try again.")
   });
   const confirmPayment = useMutation({
     mutationFn: ({ id, approved }: { id: string; approved: boolean }) =>
       api.patch(`/admin/payments/${id}/confirm`, { approved }),
     onSuccess: () => {
-      toast.success("Payment status updated");
+      toast.success("Payment status updated.");
       void client.invalidateQueries({ queryKey: ["admin-payments"] });
     },
-    onError: () => toast.error("Payment status could not be updated")
+    onError: () => toast.error("Couldn’t update the payment status. Try again.")
   });
   return (
     <div className="mt-7 grid gap-4">
@@ -413,7 +425,7 @@ export function AdminPaymentsContent() {
           <input className="input" name="purpose" minLength={3} required />
         </label>
         <button className="button button-primary md:col-span-2" disabled={createPayment.isPending}>
-          {createPayment.isPending ? "Creating…" : "Create payment"}
+          {createPayment.isPending ? <LoadingLabel>Creating</LoadingLabel> : "Create payment"}
         </button>
       </form>
       {!payments.data?.length ? (
@@ -426,7 +438,7 @@ export function AdminPaymentsContent() {
           >
             <div>
               <span className={`pill ${statusTone(payment.status)}`}>
-                {payment.status.replaceAll("_", " ")}
+                {humanize(payment.status)}
               </span>
               <h2 className="mt-3 font-bold">{payment.purpose}</h2>
               <p className="muted mt-1 text-sm">{payment.paymentNumber}</p>
@@ -437,12 +449,14 @@ export function AdminPaymentsContent() {
                 <div className="mt-3 flex gap-2">
                   <button
                     className="button button-primary"
+                    disabled={confirmPayment.isPending}
                     onClick={() => confirmPayment.mutate({ id: payment.id, approved: true })}
                   >
                     <Check size={16} /> Confirm
                   </button>
                   <button
                     className="button button-ghost"
+                    disabled={confirmPayment.isPending}
                     onClick={() => confirmPayment.mutate({ id: payment.id, approved: false })}
                   >
                     <X size={16} /> Reject
@@ -483,18 +497,18 @@ export function AdminInvoicesContent() {
         ]
       }),
     onSuccess: () => {
-      toast.success("Invoice created");
+      toast.success("Invoice created.");
       void client.invalidateQueries({ queryKey: ["admin-invoices"] });
     },
-    onError: () => toast.error("Invoice could not be created")
+    onError: () => toast.error("Couldn’t create the invoice. Try again.")
   });
   const markPaid = useMutation({
     mutationFn: (id: string) => api.patch(`/admin/invoices/${id}/paid`),
     onSuccess: () => {
-      toast.success("Invoice marked as paid");
+      toast.success("Invoice marked as paid.");
       void client.invalidateQueries({ queryKey: ["admin-invoices"] });
     },
-    onError: () => toast.error("Invoice status could not be updated")
+    onError: () => toast.error("Couldn’t update the invoice. Try again.")
   });
   return (
     <div className="mt-7 grid gap-4">
@@ -554,7 +568,7 @@ export function AdminInvoicesContent() {
           <input className="input" name="currency" defaultValue="USD" maxLength={3} required />
         </label>
         <button className="button button-primary self-end" disabled={createInvoice.isPending}>
-          {createInvoice.isPending ? "Creating…" : "Create invoice"}
+          {createInvoice.isPending ? <LoadingLabel>Creating</LoadingLabel> : "Create invoice"}
         </button>
       </form>
       {!invoices.data?.length ? (
@@ -566,7 +580,9 @@ export function AdminInvoicesContent() {
             key={invoice.id}
           >
             <div>
-              <span className={`pill ${statusTone(invoice.status)}`}>{invoice.status}</span>
+              <span className={`pill ${statusTone(invoice.status)}`}>
+                {humanize(invoice.status)}
+              </span>
               <h2 className="mt-3 font-bold">{invoice.invoiceNumber}</h2>
               <p className="muted mt-1 text-sm">{invoice.description}</p>
             </div>
@@ -600,7 +616,7 @@ export function NotificationsContent() {
         ? api.patch(`/client/notifications/${id}/read`)
         : api.delete(`/client/notifications/${id}`),
     onSuccess: () => void client.invalidateQueries({ queryKey: ["notifications"] }),
-    onError: () => toast.error("Notification could not be updated")
+    onError: () => toast.error("Couldn’t update the notification. Try again.")
   });
   if (!q.data?.length) return <State pending={q.isPending} error={q.isError} empty={true} />;
   return (
@@ -669,7 +685,7 @@ export function MessagesContent({ admin = false }: { admin?: boolean }) {
       setSelectedId(id);
       void client.invalidateQueries({ queryKey: ["conversations"] });
     },
-    onError: () => toast.error("Conversation could not be created")
+    onError: () => toast.error("Couldn’t start the conversation. Try again.")
   });
   const sendMessage = useMutation({
     mutationFn: (content: string) =>
@@ -678,7 +694,7 @@ export function MessagesContent({ admin = false }: { admin?: boolean }) {
       void client.invalidateQueries({ queryKey: ["conversation", selectedId] });
       void client.invalidateQueries({ queryKey: ["conversations"] });
     },
-    onError: () => toast.error("Message could not be sent")
+    onError: () => toast.error("Couldn’t send the message. Try again.")
   });
   if (q.isPending || q.isError)
     return <State pending={q.isPending} error={q.isError} empty={false} />;
@@ -732,10 +748,11 @@ export function MessagesContent({ admin = false }: { admin?: boolean }) {
         {!q.data?.length && <State pending={false} error={false} empty={true} />}
         {q.data?.map((conversation) => (
           <button
-            className={`glass card flex items-center justify-between gap-4 text-left ${
+            className={`glass card interactive-card flex items-center justify-between gap-4 text-left ${
               selectedId === conversation.id ? "border-indigo-400/40" : ""
             }`}
             key={conversation.id}
+            aria-pressed={selectedId === conversation.id}
             onClick={() => setSelectedId(conversation.id)}
           >
             <span>
@@ -757,9 +774,9 @@ export function MessagesContent({ admin = false }: { admin?: boolean }) {
             </div>
           </div>
         ) : detail.isPending ? (
-          <div className="h-48 animate-pulse rounded-2xl bg-white/5" />
+          <LoadingState title="Loading conversation" />
         ) : detail.isError || !detail.data ? (
-          <p className="text-red-200">Conversation could not be loaded.</p>
+          <ErrorState title="Unable to load this conversation" />
         ) : (
           <>
             <h2 className="text-lg font-bold">{detail.data.subject}</h2>
@@ -795,7 +812,13 @@ export function MessagesContent({ admin = false }: { admin?: boolean }) {
                 required
               />
               <button className="button button-primary self-end" disabled={sendMessage.isPending}>
-                <Send size={17} /> Send
+                {sendMessage.isPending ? (
+                  <LoadingLabel>Sending</LoadingLabel>
+                ) : (
+                  <>
+                    <Send size={17} /> Send
+                  </>
+                )}
               </button>
             </form>
           </>
@@ -832,20 +855,20 @@ export function FilesContent({ admin = false }: { admin?: boolean }) {
       return api.post("/files", data, { headers: { "Content-Type": "multipart/form-data" } });
     },
     onSuccess: () => {
-      toast.success("File uploaded");
+      toast.success("File uploaded.");
       setFile(undefined);
       void client.invalidateQueries({ queryKey: ["files"] });
     },
-    onError: () => toast.error("File could not be uploaded")
+    onError: () => toast.error("Couldn’t upload the file. Try again.")
   });
   const access = useMutation({
     mutationFn: ({ id, clientVisible }: { id: string; clientVisible: boolean }) =>
       api.patch(`/files/${id}/access`, { clientVisible }),
     onSuccess: () => {
-      toast.success("File access updated");
+      toast.success("File access updated.");
       void client.invalidateQueries({ queryKey: ["files"] });
     },
-    onError: () => toast.error("File access could not be updated")
+    onError: () => toast.error("Couldn’t update file access. Try again.")
   });
   return (
     <div className="mt-7 grid gap-4">
@@ -866,10 +889,19 @@ export function FilesContent({ admin = false }: { admin?: boolean }) {
             onChange={(event) => setFile(event.target.files?.[0])}
           />
           <button className="button button-primary" disabled={!file || upload.isPending}>
-            {upload.isPending ? "Uploading…" : "Upload"}
+            {upload.isPending ? <LoadingLabel>Uploading</LoadingLabel> : "Upload"}
           </button>
         </form>
       </div>
+      {!filesQuery.data?.length && (
+        <State
+          pending={filesQuery.isPending}
+          error={filesQuery.isError}
+          empty={true}
+          emptyTitle="No files yet"
+          emptyDescription="Project files shared with you will appear here."
+        />
+      )}
       {filesQuery.data?.map((item) => (
         <article
           className="glass card flex flex-wrap items-center justify-between gap-4"
@@ -878,7 +910,7 @@ export function FilesContent({ admin = false }: { admin?: boolean }) {
           <div>
             <h3 className="font-semibold">{item.name}</h3>
             <p className="muted mt-1 text-xs">
-              {item.category.replaceAll("_", " ")} · {(item.size / 1024).toFixed(1)} KB ·{" "}
+              {humanize(item.category)} · {(item.size / 1024).toFixed(1)} KB ·{" "}
               {new Date(item.createdAt).toLocaleDateString()}
             </p>
           </div>
@@ -919,10 +951,10 @@ export function AdminOrdersContent() {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.patch(`/admin/orders/${id}`, { status }),
     onSuccess: () => {
-      toast.success("Order status updated");
+      toast.success("Order status updated.");
       void client.invalidateQueries({ queryKey: ["admin-orders"] });
     },
-    onError: () => toast.error("Order status could not be updated")
+    onError: () => toast.error("Couldn’t update the order. Try again.")
   });
   const convert = useMutation({
     mutationFn: ({ id, form }: { id: string; form: FormData }) =>
@@ -932,40 +964,40 @@ export function AdminOrdersContent() {
         currency: formText(form, "currency")
       }),
     onSuccess: () => {
-      toast.success("Order converted to project");
+      toast.success("Order converted to a project.");
       void client.invalidateQueries({ queryKey: ["admin-orders"] });
       void client.invalidateQueries({ queryKey: ["projects"] });
     },
-    onError: () => toast.error("Order could not be converted")
+    onError: () => toast.error("Couldn’t convert the order. Try again.")
   });
   if (!q.data?.length) return <State pending={q.isPending} error={q.isError} empty={true} />;
   return (
-    <div className="mt-7 overflow-hidden rounded-2xl border border-white/10">
+    <div className="mt-7 overflow-hidden rounded-3xl border border-white/10">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead className="bg-white/5 text-[#a8aabc]">
             <tr>
-              <th className="p-4">Order</th>
-              <th>Project</th>
-              <th>Client</th>
-              <th>Status</th>
-              <th>Created</th>
-              <th className="pr-4">Actions</th>
+              <th className="px-4 py-3">Order</th>
+              <th className="px-4 py-3">Project</th>
+              <th className="px-4 py-3">Client</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Created</th>
+              <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
           <tbody>
             {q.data.map((o) => (
               <tr className="border-t border-white/8" key={o.id}>
-                <td className="p-4 font-semibold">{o.orderNumber}</td>
-                <td>
+                <td className="px-4 py-3 font-semibold">{o.orderNumber}</td>
+                <td className="px-4 py-3">
                   {o.projectName}
                   <span className="muted block text-xs">{o.projectType}</span>
                 </td>
-                <td>
+                <td className="px-4 py-3">
                   {o.contactName}
                   <span className="muted block text-xs">{o.contactEmail}</span>
                 </td>
-                <td>
+                <td className="px-4 py-3">
                   <select
                     aria-label={`Status for ${o.orderNumber}`}
                     className="input min-w-36 py-2 text-xs"
@@ -986,8 +1018,8 @@ export function AdminOrdersContent() {
                     ))}
                   </select>
                 </td>
-                <td>{new Date(o.createdAt).toLocaleDateString()}</td>
-                <td className="pr-4">
+                <td className="px-4 py-3">{new Date(o.createdAt).toLocaleDateString()}</td>
+                <td className="px-4 py-3">
                   {["ACCEPTED", "ESTIMATION"].includes(o.status) ? (
                     <form
                       className="grid min-w-64 grid-cols-2 gap-2"
@@ -1095,10 +1127,10 @@ export function AdminListContent({
             status: currentStatus === "BLOCKED" ? "ACTIVE" : "BLOCKED"
           }),
     onSuccess: () => {
-      toast.success("Record updated");
+      toast.success("Record updated.");
       void client.invalidateQueries({ queryKey: ["admin", resource] });
     },
-    onError: () => toast.error("Record could not be updated")
+    onError: () => toast.error("Couldn’t update the record. Try again.")
   });
   if (!query.data?.length)
     return <State pending={query.isPending} error={query.isError} empty={true} />;
@@ -1159,8 +1191,8 @@ export function AdminListContent({
 export function BankSettingsContent() {
   const mutation = useMutation({
     mutationFn: (data: Record<string, string>) => api.put("/admin/settings/bank-details", data),
-    onSuccess: () => toast.success("Bank details saved securely"),
-    onError: () => toast.error("Bank details could not be saved")
+    onSuccess: () => toast.success("Bank details saved."),
+    onError: () => toast.error("Couldn’t save bank details. Try again.")
   });
   return (
     <form
@@ -1200,7 +1232,7 @@ export function BankSettingsContent() {
         <textarea className="input" name="paymentInstructions" required />
       </label>
       <button className="button button-primary sm:col-span-2" disabled={mutation.isPending}>
-        {mutation.isPending ? "Saving…" : "Save bank details"}
+        {mutation.isPending ? <LoadingLabel>Saving</LoadingLabel> : "Save bank details"}
       </button>
     </form>
   );
@@ -1224,8 +1256,8 @@ export function ProfileContent() {
   });
   const mutation = useMutation({
     mutationFn: (data: Record<string, string>) => api.patch("/users/me", data),
-    onSuccess: () => toast.success("Profile updated"),
-    onError: () => toast.error("Profile could not be updated")
+    onSuccess: () => toast.success("Profile updated."),
+    onError: () => toast.error("Couldn’t update your profile. Try again.")
   });
   if (!query.data) return <State pending={query.isPending} error={query.isError} empty={false} />;
   return (
@@ -1259,7 +1291,7 @@ export function ProfileContent() {
         <input className="input" name="country" defaultValue={query.data.country ?? ""} />
       </label>
       <button className="button button-primary self-end" disabled={mutation.isPending}>
-        {mutation.isPending ? "Saving…" : "Save profile"}
+        {mutation.isPending ? <LoadingLabel>Saving</LoadingLabel> : "Save profile"}
       </button>
     </form>
   );

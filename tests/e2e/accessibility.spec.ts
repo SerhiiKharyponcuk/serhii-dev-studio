@@ -1,7 +1,17 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-for (const route of ["/", "/portfolio", "/services", "/pricing", "/order", "/login"]) {
+for (const route of [
+  "/",
+  "/portfolio",
+  "/services",
+  "/pricing",
+  "/faq",
+  "/contact",
+  "/order",
+  "/login",
+  "/register"
+]) {
   test(`accessibility scan ${route}`, async ({ page }) => {
     await page.goto(route);
     const results = await new AxeBuilder({ page }).analyze();

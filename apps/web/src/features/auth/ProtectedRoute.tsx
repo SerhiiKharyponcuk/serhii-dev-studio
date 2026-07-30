@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Navigate, Outlet } from "react-router";
 import { api } from "../../lib/api";
+import { LoadingState } from "../../components/AsyncState";
 
 type CurrentUser = {
   id: string;
@@ -20,7 +21,7 @@ export function ProtectedRoute({ admin = false }: { admin?: boolean }) {
   if (query.isPending)
     return (
       <div className="shell section">
-        <div className="h-28 animate-pulse rounded-3xl bg-white/5" />
+        <LoadingState title="Checking your session" />
       </div>
     );
   if (query.isError) return <Navigate to="/login" replace />;

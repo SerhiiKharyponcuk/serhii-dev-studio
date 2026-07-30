@@ -3,7 +3,16 @@
   "short_name": "Serhii Dev",
   "description": "Modern websites and scalable web applications by Serhii Kharyponchuk.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#070812",
-  "theme_color": "#070812"
+  "theme_color": "#070812",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }

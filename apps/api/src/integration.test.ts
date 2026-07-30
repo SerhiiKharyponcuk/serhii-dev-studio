@@ -20,6 +20,9 @@ describe.runIf(runDatabaseTests).sequential("PostgreSQL business flows", () => {
   let paymentId = "";
   let invoiceId = "";
   let orderId = "";
+  let registrationId = "";
+  let registrationEmail = "";
+  let clientRefreshCookie = "";
 
   const suffix = randomUUID().slice(0, 8);
   const password = "Integration-password-2026!";
@@ -77,7 +80,7 @@ describe.runIf(runDatabaseTests).sequential("PostgreSQL business flows", () => {
     if (projectId) await prisma.project.deleteMany({ where: { id: projectId } });
     if (orderId) await prisma.order.deleteMany({ where: { id: orderId } });
     await prisma.user.deleteMany({
-      where: { id: { in: [adminId, clientId, otherClientId].filter(Boolean) } }
+      where: { id: { in: [adminId, clientId, otherClientId, registrationId].filter(Boolean) } }
     });
     await prisma.$disconnect();
   });
@@ -94,7 +97,64 @@ describe.runIf(runDatabaseTests).sequential("PostgreSQL business flows", () => {
         .send({ email, password });
       expect(response.status).toBe(200);
       expect(response.headers["set-cookie"]).toBeDefined();
+      if (email === clientEmail) {
+        const cookies = response.headers["set-cookie"] as unknown as string[];
+        clientRefreshCookie =
+          cookies.find((cookie) => cookie.startsWith("refresh_token="))?.split(";")[0] ?? "";
+      }
     }
+  });
+
+  it("allows a refresh token to be rotated only once", async () => {
+    expect(clientRefreshCookie).not.toBe("");
+    const refresh = () =>
+      request(app)
+        .post("/api/auth/refresh")
+        .set("Origin", origin)
+        .set("Cookie", clientRefreshCookie);
+    const responses = await Promise.all([refresh(), refresh()]);
+
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 401]);
+    await expect(
+      prisma.refreshToken.count({ where: { userId: clientId, revokedAt: null } })
+    ).resolves.toBe(0);
+  });
+
+  it("keeps a new account pending until email verification", async () => {
+    const email = `pending-${suffix}@example.test`;
+    registrationEmail = email;
+    const response = await request(app)
+      .post("/api/auth/register")
+      .set("Origin", origin)
+      .send({ name: "Pending Client", email, password });
+
+    expect(response.status).toBe(201);
+    expect(response.headers["set-cookie"]).toBeUndefined();
+    const registered = await prisma.user.findUniqueOrThrow({ where: { email } });
+    registrationId = registered.id;
+    expect(registered.status).toBe("PENDING");
+    await expect(
+      prisma.authToken.count({
+        where: { userId: registrationId, type: "EMAIL_VERIFICATION", usedAt: null }
+      })
+    ).resolves.toBe(1);
+  });
+
+  it("replaces an unused email verification token without revealing account state", async () => {
+    const response = await request(app)
+      .post("/api/auth/resend")
+      .set("Origin", origin)
+      .send({ email: registrationEmail });
+
+    expect(response.status).toBe(200);
+    expect((response.body as { message: string }).message).toBe(
+      "If the account is awaiting verification, a new link will be sent"
+    );
+    await expect(
+      prisma.authToken.count({
+        where: { userId: registrationId, type: "EMAIL_VERIFICATION", usedAt: null }
+      })
+    ).resolves.toBe(1);
   });
 
   it("creates a validated public order", async () => {

@@ -16,7 +16,7 @@ api.interceptors.response.use(
       !axios.isAxiosError(error) ||
       error.response?.status !== 401 ||
       !error.config ||
-      error.config.url?.includes("/auth/refresh")
+      (error.config.url?.includes("/auth/") && !error.config.url.includes("/auth/me"))
     ) {
       return Promise.reject(error instanceof Error ? error : new Error("Request failed"));
     }

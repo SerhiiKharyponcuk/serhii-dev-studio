@@ -2,29 +2,20 @@ import path from "node:path";
 import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
-import { fileTypeFromBuffer } from "file-type";
 import { prisma } from "../../config/prisma.js";
 import { loadFile, storeFile } from "../../services/storage/storage.js";
+import {
+  hasAllowedFileMetadata,
+  hasMatchingFileContent
+} from "../../services/storage/file-validation.js";
 import { AppError, success } from "../../utils/http.js";
 import { authorize } from "../../middleware/auth.js";
 import { audit } from "../../services/audit/audit.js";
 
-const allowed = new Map([
-  ["application/pdf", new Set([".pdf"])],
-  ["image/png", new Set([".png"])],
-  ["image/jpeg", new Set([".jpg", ".jpeg"])],
-  ["image/webp", new Set([".webp"])],
-  ["text/plain", new Set([".txt"])],
-  ["application/zip", new Set([".zip"])]
-]);
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024, files: 1 },
-  fileFilter: (_req, file, cb) =>
-    cb(
-      null,
-      allowed.get(file.mimetype)?.has(path.extname(file.originalname).toLowerCase()) === true
-    )
+  fileFilter: (_req, file, cb) => cb(null, hasAllowedFileMetadata(file))
 });
 export const fileRouter = Router();
 fileRouter.get("/", async (req, res, next) => {
@@ -59,8 +50,7 @@ fileRouter.get("/", async (req, res, next) => {
 fileRouter.post("/", upload.single("file"), async (req, res, next) => {
   try {
     if (!req.file) throw new AppError(422, "A supported file is required");
-    const detected = await fileTypeFromBuffer(req.file.buffer);
-    if (req.file.mimetype !== "text/plain" && detected?.mime !== req.file.mimetype)
+    if (!(await hasMatchingFileContent(req.file)))
       throw new AppError(
         422,
         "File content does not match its declared type",

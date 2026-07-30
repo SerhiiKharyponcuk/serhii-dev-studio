@@ -5,12 +5,16 @@ import {
   FolderKanban,
   LayoutDashboard,
   MessageSquare,
+  Menu,
   Receipt,
-  Settings
+  Settings,
+  X
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "react-router";
+import { useEffect, useState } from "react";
+import { NavLink, useLocation } from "react-router";
 import { api } from "../../lib/api";
+import { ErrorState, LoadingState } from "../../components/AsyncState";
 import { AdminStatsChart } from "../../features/dashboard/AdminStatsChart";
 import {
   AdminOrdersContent,
@@ -58,10 +62,12 @@ const adminItems = [
 ] as const;
 export function DashboardPage({ admin = false }: { admin?: boolean }) {
   const { pathname } = useLocation();
+  const [navigationOpen, setNavigationOpen] = useState(false);
   const navigation = admin ? adminItems : items;
   const label =
     navigation.find((x) => x[1] === pathname)?.[0] ??
     (admin ? "Admin dashboard" : "Client dashboard");
+  useEffect(() => setNavigationOpen(false), [pathname]);
   const query = useQuery({
     queryKey: [admin ? "admin-dashboard" : "client-overview"],
     queryFn: async () => {
@@ -154,18 +160,44 @@ export function DashboardPage({ admin = false }: { admin?: boolean }) {
     ) : null;
   return (
     <div className="dashboard-grid">
-      <aside className="border-r border-white/8 p-5">
-        <b>{admin ? "Studio Admin" : "Client workspace"}</b>
-        <nav className="mt-7 grid gap-1">
+      <aside className="dashboard-sidebar border-r border-white/8 p-4 md:sticky md:top-[72px] md:h-[calc(100vh-72px)] md:overflow-y-auto md:p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <b>{admin ? "Studio Admin" : "Client workspace"}</b>
+            <p className="muted mt-0.5 text-xs md:hidden">{label}</p>
+          </div>
+          <button
+            className="icon-button md:hidden"
+            type="button"
+            aria-label={navigationOpen ? "Close workspace navigation" : "Open workspace navigation"}
+            aria-controls="workspace-navigation"
+            aria-expanded={navigationOpen}
+            onClick={() => setNavigationOpen((value) => !value)}
+          >
+            {navigationOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
+        <nav
+          id="workspace-navigation"
+          className={`${navigationOpen ? "grid" : "hidden"} mt-4 max-h-[60vh] gap-1 overflow-y-auto border-t border-white/8 pt-4 md:mt-7 md:grid md:max-h-none md:overflow-visible md:border-0 md:pt-0`}
+          aria-label={admin ? "Admin navigation" : "Client navigation"}
+        >
           {navigation.map(([name, path, Icon]) => (
-            <Link
+            <NavLink
               key={path}
               to={path}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm ${pathname === path ? "bg-white/8 text-white" : "text-[#9295a7]"}`}
+              end={path === (admin ? "/admin" : "/dashboard")}
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-200 ${
+                  isActive
+                    ? "bg-indigo-500/14 text-white"
+                    : "text-[#9295a7] hover:bg-white/5 hover:text-white"
+                }`
+              }
             >
               <Icon size={17} />
               {name}
-            </Link>
+            </NavLink>
           ))}
         </nav>
       </aside>
@@ -174,11 +206,13 @@ export function DashboardPage({ admin = false }: { admin?: boolean }) {
         <h1 className="mt-2 text-3xl font-bold">{label}</h1>
         {section ??
           (query.isPending ? (
-            <div className="mt-8 h-32 animate-pulse rounded-3xl bg-white/5" />
+            <LoadingState className="mt-8" title="Loading dashboard data" />
           ) : query.isError ? (
-            <div className="glass card mt-8 text-red-200">
-              Dashboard data could not be loaded. Try again shortly.
-            </div>
+            <ErrorState
+              className="mt-8"
+              title="Unable to load dashboard data"
+              description="Please refresh the page or try again in a moment."
+            />
           ) : (
             <>
               <div className="grid-auto mt-8">

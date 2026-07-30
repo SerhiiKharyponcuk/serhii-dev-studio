@@ -19,22 +19,25 @@ const credentials = () => {
     }
   };
 };
-const client = () =>
-  new S3Client({
-    region: env.S3_REGION,
-    ...(env.S3_ENDPOINT ? { endpoint: env.S3_ENDPOINT } : {}),
-    forcePathStyle: env.S3_FORCE_PATH_STYLE,
-    ...credentials()
-  });
+const s3Client = new S3Client({
+  region: env.S3_REGION,
+  ...(env.S3_ENDPOINT ? { endpoint: env.S3_ENDPOINT } : {}),
+  forcePathStyle: env.S3_FORCE_PATH_STYLE,
+  ...credentials()
+});
 
 export async function storeS3File(file: Express.Multer.File) {
   const key = randomUUID();
-  await client().send(
+  await s3Client.send(
     new PutObjectCommand({
       Bucket: bucket(),
       Key: key,
       Body: file.buffer,
-      ContentType: file.mimetype
+      ContentType: file.mimetype,
+      ...(env.S3_SERVER_SIDE_ENCRYPTION
+        ? { ServerSideEncryption: env.S3_SERVER_SIDE_ENCRYPTION }
+        : {}),
+      ...(env.S3_KMS_KEY_ID ? { SSEKMSKeyId: env.S3_KMS_KEY_ID } : {})
     })
   );
   return key;
@@ -43,7 +46,7 @@ export async function storeS3File(file: Express.Multer.File) {
 export async function loadS3File(key: string) {
   if (!/^[0-9a-f-]{36}$/i.test(key)) throw new AppError(400, "Invalid file key");
   try {
-    const object = await client().send(new GetObjectCommand({ Bucket: bucket(), Key: key }));
+    const object = await s3Client.send(new GetObjectCommand({ Bucket: bucket(), Key: key }));
     if (!object.Body) throw new AppError(404, "File not found", "NOT_FOUND");
     return Buffer.from(await object.Body.transformToByteArray());
   } catch (error) {

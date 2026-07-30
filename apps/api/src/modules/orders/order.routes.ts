@@ -1,20 +1,24 @@
 import { randomInt } from "node:crypto";
 import { Router } from "express";
 import { orderSchema } from "@serhii-dev/contracts";
-import { fileTypeFromBuffer } from "file-type";
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import path from "node:path";
 import { prisma } from "../../config/prisma.js";
 import { env } from "../../config/env.js";
 import { storeFile } from "../../services/storage/storage.js";
+import {
+  hasAllowedFileMetadata,
+  hasMatchingFileContent
+} from "../../services/storage/file-validation.js";
 import { success } from "../../utils/http.js";
 import { sendAccountEmail } from "../../services/mail/mailer.js";
 
 const router = Router();
 const orderUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024, files: 4 }
+  limits: { fileSize: 10 * 1024 * 1024, files: 4 },
+  fileFilter: (_req, file, callback) => callback(null, hasAllowedFileMetadata(file))
 });
 router.post("/", async (req, res, next) => {
   try {
@@ -83,20 +87,8 @@ router.post("/:id/files", orderUpload.array("files", 4), async (req, res, next) 
     if (!Array.isArray(files) || files.length === 0) {
       return res.status(422).json({ success: false, message: "At least one file is required" });
     }
-    const allowed = new Set([
-      "application/pdf",
-      "image/png",
-      "image/jpeg",
-      "image/webp",
-      "text/plain",
-      "application/zip"
-    ]);
     for (const file of files) {
-      const detected = await fileTypeFromBuffer(file.buffer);
-      if (
-        !allowed.has(file.mimetype) ||
-        (file.mimetype !== "text/plain" && detected?.mime !== file.mimetype)
-      ) {
+      if (!(await hasMatchingFileContent(file))) {
         return res.status(422).json({ success: false, message: "A file type was rejected" });
       }
     }

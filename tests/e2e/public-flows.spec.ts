@@ -19,13 +19,37 @@ test("order wizard validates required project information", async ({ page }) => 
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByRole("heading", { name: "2. Project information" })).toBeVisible();
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByText("String must contain at least 20 character(s)")).toBeVisible();
+  await expect(page.getByText("Please add at least 20 characters.")).toBeVisible();
+});
+
+test("a service page preselects the matching project type", async ({ page }) => {
+  await page.goto("/order?service=online-shop");
+  await expect(page.getByRole("radio", { name: "Online Shop" })).toBeChecked();
+});
+
+test("contact form gives persistent success feedback", async ({ page }) => {
+  await page.route("**/api/contact", async (route) => {
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, message: "Message received", data: null })
+    });
+  });
+  await page.goto("/contact");
+  await page.getByRole("textbox", { name: "Name" }).fill("Test Client");
+  await page.getByRole("textbox", { name: "Email" }).fill("client@example.test");
+  await page.getByRole("textbox", { name: "Subject" }).fill("New website");
+  await page
+    .getByRole("textbox", { name: "Message" })
+    .fill("I would like to discuss a new business website for my company.");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByRole("status")).toHaveText("Thanks — your message has been received.");
 });
 
 test("mobile navigation opens and exposes primary pages", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("mobile"));
   await page.goto("/");
-  await page.getByRole("button", { name: "Toggle navigation" }).click();
+  await page.getByRole("button", { name: "Open navigation" }).click();
   const navigation = page.getByRole("banner").getByRole("navigation");
   await expect(navigation.getByRole("link", { name: "Services", exact: true })).toBeVisible();
   await expect(navigation.getByRole("link", { name: "Start project", exact: true })).toBeVisible();
@@ -41,6 +65,26 @@ test("private dashboard redirects an anonymous visitor", async ({ page }) => {
   });
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login$/);
+});
+
+test("a pending client can request a new verification link", async ({ page }) => {
+  await page.route("**/api/auth/resend", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        message: "If the account is awaiting verification, a new link will be sent",
+        data: null
+      })
+    });
+  });
+  await page.goto("/resend-verification");
+  await page.getByRole("textbox", { name: "Email" }).fill("pending@example.test");
+  await page.getByRole("button", { name: "Send verification link" }).click();
+  await expect(page.getByRole("status")).toHaveText(
+    "If the account is awaiting verification, a new link was sent."
+  );
 });
 
 test("client role cannot open the admin panel", async ({ page }) => {
@@ -129,6 +173,8 @@ test("administrator can open payment and invoice operations", async ({ page }) =
 
   await page.goto("/admin/payments");
   await expect(page.getByRole("heading", { name: "Create payment request" })).toBeVisible();
+  const workspaceToggle = page.getByRole("button", { name: "Open workspace navigation" });
+  if (await workspaceToggle.isVisible()) await workspaceToggle.click();
   await page.getByRole("link", { name: "Invoices", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Create invoice" })).toBeVisible();
 });
@@ -166,4 +212,42 @@ test("client overview displays server-provided counts", async ({ page }) => {
   await page.goto("/dashboard");
   await expect(page.getByText("Active projects").locator("..").getByText("2")).toBeVisible();
   await expect(page.getByText("Unread messages").locator("..").getByText("3")).toBeVisible();
+});
+
+test("mobile workspace navigation stays compact and accessible", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("mobile"));
+  await page.route("**/api/auth/me", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          id: "client-test",
+          name: "Test Client",
+          email: "client@example.test",
+          role: "CLIENT"
+        }
+      })
+    });
+  });
+  await page.route("**/api/client/overview", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          activeProjects: 0,
+          unreadMessages: 0,
+          openInvoices: 0,
+          recentFiles: 0,
+          recentUpdates: []
+        }
+      })
+    });
+  });
+  await page.goto("/dashboard");
+  const toggle = page.getByRole("button", { name: "Open workspace navigation" });
+  await expect(toggle).toBeVisible();
+  await toggle.click();
+  await expect(page.getByRole("link", { name: "My Projects" })).toBeVisible();
 });

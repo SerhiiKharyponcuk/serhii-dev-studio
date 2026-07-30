@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 import { AppError } from "../utils/http.js";
 import multer from "multer";
 
-export const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, next) => {
+export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, next) => {
   void next;
   if (error instanceof ZodError) {
     res.status(422).json({
@@ -25,6 +25,7 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, nex
       .json({ success: false, message: "File upload was rejected", error: { code: error.code } });
     return;
   }
+  req.log.error({ err: error }, "Unhandled request error");
   res.status(500).json({
     success: false,
     message: "An unexpected error occurred",

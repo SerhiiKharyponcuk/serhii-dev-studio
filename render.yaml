@@ -8,7 +8,6 @@ services:
     buildCommand: npm ci && npm run prisma:generate --workspace @serhii-dev/api && npm run build --workspace @serhii-dev/api
     startCommand: npm run prisma:migrate:deploy --workspace @serhii-dev/api && node apps/api/dist/src/server.js
     healthCheckPath: /api/ready
-    maxShutdownDelaySeconds: 30
     autoDeployTrigger: checksPass
     envVars:
       - key: NODE_ENV

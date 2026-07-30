@@ -5,7 +5,7 @@ services:
     plan: free
     region: frankfurt
     rootDir: .
-    buildCommand: npm ci && npm run prisma:generate --workspace @serhii-dev/api && npm run build --workspace @serhii-dev/api
+    buildCommand: npm ci --include=dev && npm run prisma:generate --workspace @serhii-dev/api && npm run build --workspace @serhii-dev/api
     startCommand: npm run prisma:migrate:deploy --workspace @serhii-dev/api && node apps/api/dist/src/server.js
     healthCheckPath: /api/ready
     autoDeployTrigger: checksPass

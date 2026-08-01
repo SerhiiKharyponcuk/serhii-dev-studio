@@ -5,7 +5,7 @@ export const site = {
   location: "Netherlands",
   description:
     "I build modern, fast and scalable websites and web applications for businesses, startups and online projects.",
-  email: null as string | null,
+  email: "hello@serhiidev.com",
   technologies: [
     "React",
     "TypeScript",

@@ -43,6 +43,7 @@ third-party cookies.
   documented cross-subdomain requirement exists.
 - `COOKIE_SAME_SITE`: `lax` for sibling custom domains; `none` only for cross-site HTTPS.
 - `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`: independent random secrets of at least 32 characters.
+- `ADMIN_EMAIL_2FA`: must be `true` in production; admin sign-in is completed through a one-time email link.
 - `SETTINGS_ENCRYPTION_KEY`: output of `openssl rand -base64 32`.
 - `RESEND_API_KEY`, `SMTP_FROM`: key and sender on the verified Resend subdomain.
 - `FILE_STORAGE=s3` plus the S3 endpoint, region, bucket and least-privilege credentials.

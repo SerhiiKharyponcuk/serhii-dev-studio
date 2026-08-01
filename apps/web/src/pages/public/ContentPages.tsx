@@ -3,13 +3,15 @@ import { Link, useParams } from "react-router";
 import { pricing, projects, services, site } from "../../config/site";
 import { ContactForm } from "../../features/contact/ContactForm";
 import { PortfolioGrid } from "../../features/portfolio/PortfolioGrid";
+import { useI18n } from "../../i18n/I18nProvider";
 
 function Intro({ eyebrow, title, text }: { eyebrow: string; title: string; text: string }) {
+  const { t } = useI18n();
   return (
     <div className="shell pt-20 text-center">
-      <p className="eyebrow">{eyebrow}</p>
-      <h1 className="section-title mx-auto mt-4 max-w-4xl">{title}</h1>
-      <p className="muted mx-auto mt-5 max-w-2xl leading-7">{text}</p>
+      <p className="eyebrow">{t(eyebrow)}</p>
+      <h1 className="section-title mx-auto mt-4 max-w-4xl">{t(title)}</h1>
+      <p className="muted mx-auto mt-5 max-w-2xl leading-7">{t(text)}</p>
     </div>
   );
 }
@@ -26,6 +28,7 @@ export function PortfolioPage() {
   );
 }
 export function ProjectPage() {
+  const { t } = useI18n();
   const { slug } = useParams();
   const p = projects.find((x) => x.slug === slug);
   if (!p) return <NotFound />;
@@ -33,33 +36,33 @@ export function ProjectPage() {
     <section className="section">
       <div className="shell">
         <Link className="muted text-sm" to="/portfolio">
-          ← Back to portfolio
+          ← {t("Back to portfolio")}
         </Link>
         <p className="eyebrow mt-10">{p.category}</p>
         <h1 className="title mt-4">{p.title}</h1>
-        <p className="muted mt-6 max-w-3xl text-lg leading-8">{p.description}</p>
+        <p className="muted mt-6 max-w-3xl text-lg leading-8">{t(p.description)}</p>
         <div className="project-art mt-12 min-h-[440px]" />
         <div className="mt-12 grid gap-5 md:grid-cols-3">
           <article className="glass card">
-            <b>Challenge</b>
+            <b>{t("Challenge")}</b>
             <p className="muted mt-3 text-sm leading-6">
               Create an experience that remains intuitive as the product and its feature set grow.
             </p>
           </article>
           <article className="glass card">
-            <b>Solution</b>
+            <b>{t("Solution")}</b>
             <p className="muted mt-3 text-sm leading-6">
               A component-led interface backed by typed APIs and a scalable data model.
             </p>
           </article>
           <article className="glass card">
-            <b>Result</b>
+            <b>{t("Result")}</b>
             <p className="muted mt-3 text-sm leading-6">
               A responsive foundation ready for measured iteration and production deployment.
             </p>
           </article>
         </div>
-        <h2 className="mt-14 text-2xl font-bold">Technology</h2>
+        <h2 className="mt-14 text-2xl font-bold">{t("Technology")}</h2>
         <div className="mt-5 flex flex-wrap gap-2">
           {p.technologies.map((t) => (
             <span className="pill" key={t}>
@@ -68,13 +71,14 @@ export function ProjectPage() {
           ))}
         </div>
         <p className="muted mt-8 text-sm">
-          Live demo and source links are shown only when verified URLs are configured.
+          {t("Live demo and source links are shown only when verified URLs are configured.")}
         </p>
       </div>
     </section>
   );
 }
 export function ServicesPage() {
+  const { t } = useI18n();
   return (
     <section className="section pt-0">
       <Intro
@@ -86,32 +90,35 @@ export function ServicesPage() {
         {services.map((s) => (
           <article key={s.slug} className="glass card interactive-card flex flex-col">
             <p className="text-xs text-indigo-300">{s.time}</p>
-            <h2 className="mt-3 text-xl font-bold">{s.name}</h2>
-            <p className="muted mt-3 text-sm leading-6">{s.description}</p>
+            <h2 className="mt-3 text-xl font-bold">{t(s.name)}</h2>
+            <p className="muted mt-3 text-sm leading-6">{t(s.description)}</p>
             <ul className="mt-5 grid gap-2 text-sm">
               {s.features.map((f) => (
                 <li className="flex gap-2" key={f}>
                   <Check size={16} className="text-emerald-300" />
-                  {f}
+                  {t(f)}
                 </li>
               ))}
             </ul>
             <div className="mt-auto pt-7">
-              <b>Starting from ${s.price.toLocaleString()}</b>
+              <b>
+                {t("Starting from")} ${s.price.toLocaleString()}
+              </b>
               <Link className="button button-ghost mt-4 w-full" to={`/services/${s.slug}`}>
-                View service
+                {t("View service")}
               </Link>
             </div>
           </article>
         ))}
       </div>
       <p className="shell muted mt-8 text-center text-sm">
-        Final price depends on project complexity, design, features and deadline.
+        {t("Final price depends on project complexity, design, features and deadline.")}
       </p>
     </section>
   );
 }
 export function ServicePage() {
+  const { t } = useI18n();
   const { slug } = useParams();
   const s = services.find((x) => x.slug === slug);
   if (!s) return <NotFound />;
@@ -119,27 +126,29 @@ export function ServicePage() {
     <section className="section">
       <div className="shell max-w-4xl">
         <Link className="muted text-sm" to="/services">
-          ← All services
+          ← {t("All services")}
         </Link>
         <p className="eyebrow mt-10">{s.time}</p>
-        <h1 className="title mt-4">{s.name}</h1>
-        <p className="muted mt-6 text-lg leading-8">{s.description}</p>
+        <h1 className="title mt-4">{t(s.name)}</h1>
+        <p className="muted mt-6 text-lg leading-8">{t(s.description)}</p>
         <div className="glass card mt-10">
-          <h2 className="text-xl font-bold">What’s included</h2>
+          <h2 className="text-xl font-bold">{t("What’s included")}</h2>
           <ul className="mt-5 grid gap-3">
             {s.features.map((f) => (
               <li className="flex gap-3" key={f}>
                 <Check className="text-emerald-300" />
-                {f}
+                {t(f)}
               </li>
             ))}
           </ul>
-          <p className="mt-8 text-xl font-bold">Starting from ${s.price.toLocaleString()}</p>
+          <p className="mt-8 text-xl font-bold">
+            {t("Starting from")} ${s.price.toLocaleString()}
+          </p>
           <p className="muted mt-2 text-sm">
-            Final price depends on project complexity, design, features and deadline.
+            {t("Final price depends on project complexity, design, features and deadline.")}
           </p>
           <Link className="button button-primary mt-7" to={`/order?service=${s.slug}`}>
-            Order this service
+            {t("Order this service")}
           </Link>
         </div>
       </div>
@@ -147,6 +156,7 @@ export function ServicePage() {
   );
 }
 export function PricingPage() {
+  const { t } = useI18n();
   return (
     <section className="section pt-0">
       <Intro
@@ -162,15 +172,17 @@ export function PricingPage() {
             }`}
             key={p.name}
           >
-            {p.popular && <span className="pill absolute right-4 top-4">Most popular</span>}
-            <h2 className="text-xl font-bold">{p.name}</h2>
-            <p className="muted mt-3 min-h-16 text-sm leading-6">{p.description}</p>
-            <p className="mt-7 text-3xl font-bold">From {p.price}</p>
+            {p.popular && <span className="pill absolute right-4 top-4">{t("Most popular")}</span>}
+            <h2 className="text-xl font-bold">{t(p.name)}</h2>
+            <p className="muted mt-3 min-h-16 text-sm leading-6">{t(p.description)}</p>
+            <p className="mt-7 text-3xl font-bold">
+              {t("From")} {p.price}
+            </p>
             <ul className="my-7 grid gap-3 text-sm">
               {p.features.map((f) => (
                 <li className="flex gap-2" key={f}>
                   <Check size={17} className="text-emerald-300" />
-                  {f}
+                  {t(f)}
                 </li>
               ))}
             </ul>
@@ -178,7 +190,7 @@ export function PricingPage() {
               className={`button w-full ${p.popular ? "button-primary" : "button-ghost"}`}
               to="/order"
             >
-              Start project
+              {t("Start project")}
             </Link>
           </article>
         ))}
@@ -187,6 +199,7 @@ export function PricingPage() {
   );
 }
 export function AboutPage() {
+  const { t } = useI18n();
   return (
     <section className="section pt-0">
       <Intro
@@ -200,10 +213,11 @@ export function AboutPage() {
           <div className="mt-20 text-6xl font-bold text-white/10">SK</div>
         </div>
         <div className="glass card">
-          <h2 className="text-2xl font-bold">A practical, transparent approach</h2>
+          <h2 className="text-2xl font-bold">{t("A practical, transparent approach")}</h2>
           <p className="muted mt-5 leading-7">
-            Clear scope, visible progress and thoughtful trade-offs are part of the work—not extras.
-            I design systems that are easy to understand today and ready to evolve tomorrow.
+            {t(
+              "Clear scope, visible progress and thoughtful trade-offs are part of the work—not extras. I design systems that are easy to understand today and ready to evolve tomorrow."
+            )}
           </p>
           <div className="mt-7 flex flex-wrap gap-2">
             {site.technologies.map((t) => (
@@ -213,21 +227,23 @@ export function AboutPage() {
             ))}
           </div>
           <Link className="button button-primary mt-8" to="/order">
-            Start a project
+            {t("Start a project")}
           </Link>
         </div>
       </div>
       <div className="shell mt-12">
-        <h2 className="text-2xl font-bold">Certificates</h2>
+        <h2 className="text-2xl font-bold">{t("Certificates")}</h2>
         <div className="glass card muted mt-5 text-sm">
-          Verified certificates will appear here when their title, issuer, date, image and
-          verification link are configured.
+          {t(
+            "Verified certificates will appear here when their title, issuer, date, image and verification link are configured."
+          )}
         </div>
       </div>
     </section>
   );
 }
 export function ContactPage() {
+  const { t } = useI18n();
   return (
     <section className="section pt-0">
       <Intro
@@ -243,7 +259,7 @@ export function ContactPage() {
           </a>
         )}
         <Link className="button button-primary" to="/order">
-          Project brief
+          {t("Project brief")}
         </Link>
       </div>
     </section>
@@ -424,20 +440,26 @@ const legalContent: Record<
 };
 
 function LegalPage({ kind }: { kind: string }) {
+  const { locale, t } = useI18n();
   const content = legalContent[kind];
   if (!content) return null;
   return (
     <section className="section pt-0">
       <Intro eyebrow={kind} title={content.title} text={content.intro} />
       <article className="shell mt-12 max-w-4xl">
-        <p className="muted text-sm">Effective 30 July 2026</p>
+        {locale !== "en" && (
+          <p className="mb-5 rounded-xl border border-amber-300/20 bg-amber-300/8 px-4 py-3 text-sm text-amber-100">
+            {t("Legal documents are currently available in English only.")}
+          </p>
+        )}
+        <p className="muted text-sm">{t("Effective 30 July 2026")}</p>
         <div className="mt-8 grid gap-4">
           {content.sections.map((section) => (
             <section className="glass card" key={section.title}>
-              <h2 className="text-xl font-bold">{section.title}</h2>
+              <h2 className="text-xl font-bold">{t(section.title)}</h2>
               <div className="muted mt-4 grid gap-3 leading-7">
                 {section.paragraphs.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
+                  <p key={paragraph}>{t(paragraph)}</p>
                 ))}
               </div>
             </section>
@@ -449,6 +471,7 @@ function LegalPage({ kind }: { kind: string }) {
 }
 
 export function SimplePage({ kind }: { kind: string }) {
+  const { t } = useI18n();
   if (legalContent[kind]) return <LegalPage kind={kind} />;
   if (kind === "FAQ")
     return (
@@ -465,14 +488,14 @@ export function SimplePage({ kind }: { kind: string }) {
               key={item.question}
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-5 text-lg font-bold">
-                <span>{item.question}</span>
+                <span>{t(item.question)}</span>
                 <ChevronDown
                   className="min-w-5 text-[#77798c] transition group-open:rotate-180 group-open:text-indigo-300"
                   size={20}
                   aria-hidden="true"
                 />
               </summary>
-              <p className="muted mt-4 leading-7">{item.answer}</p>
+              <p className="muted mt-4 leading-7">{t(item.answer)}</p>
             </details>
           ))}
         </div>
@@ -485,13 +508,14 @@ export function SimplePage({ kind }: { kind: string }) {
   );
 }
 export function NotFound() {
+  const { t } = useI18n();
   return (
     <section className="section text-center">
       <div className="shell">
         <p className="eyebrow">404</p>
-        <h1 className="section-title mt-4">This page has moved beyond the map.</h1>
+        <h1 className="section-title mt-4">{t("This page has moved beyond the map.")}</h1>
         <Link className="button button-primary mt-8" to="/">
-          Return home
+          {t("Return home")}
         </Link>
       </div>
     </section>

@@ -277,7 +277,7 @@ clientRouter.delete("/notifications/:id", async (req, res, next) => {
 });
 
 export const adminRouter = Router();
-adminRouter.use(authorize("ADMIN", "SUPPORT"));
+adminRouter.use(authorize("ADMIN"));
 adminRouter.get("/dashboard", async (_req, res, next) => {
   try {
     const [clients, newOrders, activeProjects, pendingPayments] = await Promise.all([
@@ -724,6 +724,18 @@ adminRouter.post("/invoices", authorize("ADMIN"), async (req, res, next) => {
           invoiceNumber: `INV-${new Date().getUTCFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`,
           clientName: project.client.name,
           clientEmail: project.client.email,
+          billingDetails: {
+            firstName: project.client.firstName,
+            lastName: project.client.lastName,
+            companyName: project.client.companyName,
+            addressLine1: project.client.billingAddressLine1,
+            addressLine2: project.client.billingAddressLine2,
+            city: project.client.billingCity,
+            region: project.client.billingRegion,
+            postalCode: project.client.billingPostalCode,
+            country: project.client.billingCountry ?? project.client.country,
+            taxId: project.client.taxId
+          },
           description: input.description,
           subtotal,
           tax: input.tax,

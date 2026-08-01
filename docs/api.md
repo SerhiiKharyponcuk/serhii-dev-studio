@@ -7,10 +7,11 @@ Successful responses use `{ "success": true, "message": "...", "data": ... }`. E
 Implemented route groups:
 
 - `/auth`: registration, login, logout, refresh-token rotation, current profile, password
-  recovery and email verification.
+  recovery, email verification and production admin email second-factor verification.
 - `/users`: authenticated profile updates.
 - `/orders`: public validated project-request creation and signed, time-limited attachment
-  uploads.
+  uploads. Project briefs use a server-priced feature catalogue, separate first and last
+  names, and optional billing fields that can be carried into future invoices.
 - `/contact`: rate-limited contact requests.
 - `/services` and `/portfolio`: public catalog lists and detail records.
 - `/reviews`: approved public reviews, authenticated submissions and administrator
@@ -26,5 +27,12 @@ List endpoints return pagination metadata where applicable. Browser clients must
 credentials and the configured frontend Origin. Cookie-authenticated state-changing
 requests are rejected when their `Origin` does not match `WEB_ORIGIN`.
 
+Authentication and recovery endpoints have dedicated brute-force limits. JSON bodies are
+strictly validated, unsupported content types and excessive URLs are rejected before route
+handling, and public forms include layered rate limiting and bot-trap checks.
+
 Resource access is enforced server-side from the authenticated user id and role; client
 identifiers supplied by the browser are never trusted as authorization evidence.
+Admin routes require the current database role to be `ADMIN`. Admin and client route groups
+revalidate the account status and role against PostgreSQL on every request, so blocked accounts
+and changed permissions take effect immediately.

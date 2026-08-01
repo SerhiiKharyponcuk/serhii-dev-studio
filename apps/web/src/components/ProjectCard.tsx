@@ -1,8 +1,10 @@
 import { ArrowUpRight } from "lucide-react";
 import { Link } from "react-router";
 import type { projects } from "../config/site";
+import { useI18n } from "../i18n/I18nProvider";
 
 export function ProjectCard({ project }: { project: (typeof projects)[number] }) {
+  const { t } = useI18n();
   const colors: Record<string, [string, string]> = {
     "waves-arcade": ["#3b82f6", "#22d3ee"],
     "metro-shop": ["#8b5cf6", "#e879f9"],
@@ -14,18 +16,18 @@ export function ProjectCard({ project }: { project: (typeof projects)[number] })
     <Link
       className="glass card interactive-card group block"
       to={`/portfolio/${project.slug}`}
-      aria-label={`View ${project.title} case study`}
+      aria-label={`${t("View")} ${project.title} ${t("case study")}`}
     >
       <div
         className="project-art"
         style={{ "--a": pair[0], "--b": pair[1] } as React.CSSProperties}
       >
-        <span className="absolute left-4 top-4 z-10 pill">{project.category}</span>
+        <span className="absolute left-4 top-4 z-10 pill">{t(project.category)}</span>
       </div>
       <div className="mt-5 flex items-start justify-between gap-4">
         <div>
           <h3 className="text-xl font-bold">{project.title}</h3>
-          <p className="muted mt-2 text-sm leading-6">{project.description}</p>
+          <p className="muted mt-2 text-sm leading-6">{t(project.description)}</p>
         </div>
         <span
           className="grid h-10 min-w-10 place-items-center rounded-full border border-white/10 transition group-hover:bg-white group-hover:text-black"

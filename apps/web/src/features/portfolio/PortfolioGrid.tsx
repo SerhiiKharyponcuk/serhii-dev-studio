@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { ProjectCard } from "../../components/ProjectCard";
 import { projects } from "../../config/site";
+import { useI18n } from "../../i18n/I18nProvider";
 
 export function PortfolioGrid() {
+  const { t } = useI18n();
   const categories = ["All", ...new Set(projects.map((project) => project.category))];
   const [selected, setSelected] = useState("All");
   const visible =
     selected === "All" ? projects : projects.filter((project) => project.category === selected);
   return (
     <div className="shell mt-12">
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Portfolio filters">
+      <div className="flex flex-wrap gap-2" role="group" aria-label={t("Portfolio filters")}>
         {categories.map((category) => (
           <button
             key={category}
@@ -17,7 +19,7 @@ export function PortfolioGrid() {
             aria-pressed={selected === category}
             onClick={() => setSelected(category)}
           >
-            {category}
+            {t(category)}
           </button>
         ))}
       </div>

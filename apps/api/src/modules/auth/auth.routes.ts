@@ -2,8 +2,10 @@ import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcrypt";
 import { Router } from "express";
 import type { Request, Response } from "express";
+import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
+import { loginSchema, registerSchema } from "@serhii-dev/contracts";
 import { env, isProduction } from "../../config/env.js";
 import { prisma } from "../../config/prisma.js";
 import { authenticate } from "../../middleware/auth.js";
@@ -11,8 +13,20 @@ import { AppError, success } from "../../utils/http.js";
 import { sendAccountEmail } from "../../services/mail/mailer.js";
 
 const router = Router();
-const login = z.object({ email: z.string().email(), password: z.string().min(8).max(128) });
-const register = login.extend({ name: z.string().trim().min(2).max(100) });
+const credentialLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: "draft-8",
+  legacyHeaders: false
+});
+const recoveryLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-8",
+  legacyHeaders: false
+});
+const dummyPasswordHash = bcrypt.hashSync("timing-defense-only", 12);
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 const cookieBase = {
   httpOnly: true,
@@ -27,7 +41,7 @@ type SessionUser = { id: string; role: "CLIENT" | "ADMIN" | "SUPPORT" };
 
 async function issueOneTimeToken(
   userId: string,
-  type: "PASSWORD_RESET" | "EMAIL_VERIFICATION",
+  type: "PASSWORD_RESET" | "EMAIL_VERIFICATION" | "ADMIN_LOGIN",
   ttlMs: number
 ) {
   const raw = randomBytes(32).toString("base64url");
@@ -74,12 +88,14 @@ async function createSession(user: SessionUser, req: Request, res: Response) {
 
 router.post("/register", async (req, res, next) => {
   try {
-    const input = register.parse(req.body);
+    const input = registerSchema.parse(req.body);
     const exists = await prisma.user.findUnique({ where: { email: input.email.toLowerCase() } });
     if (exists) throw new AppError(409, "Account already exists", "EMAIL_IN_USE");
     const user = await prisma.user.create({
       data: {
-        name: input.name,
+        name: `${input.firstName} ${input.lastName}`,
+        firstName: input.firstName,
+        lastName: input.lastName,
         email: input.email.toLowerCase(),
         passwordHash: await bcrypt.hash(input.password, 12),
         status: "PENDING"
@@ -101,22 +117,88 @@ router.post("/register", async (req, res, next) => {
     next(e);
   }
 });
-router.post("/login", async (req, res, next) => {
+router.post("/login", credentialLimiter, async (req, res, next) => {
   try {
-    const input = login.parse(req.body);
+    const input = loginSchema.parse(req.body);
     const user = await prisma.user.findUnique({ where: { email: input.email.toLowerCase() } });
-    if (
-      !user ||
-      user.status !== "ACTIVE" ||
-      !(await bcrypt.compare(input.password, user.passwordHash))
-    )
+    const passwordMatches = await bcrypt.compare(
+      input.password,
+      user?.passwordHash ?? dummyPasswordHash
+    );
+    if (!user || user.status !== "ACTIVE" || user.deletedAt || !passwordMatches)
       throw new AppError(401, "Invalid email or password", "INVALID_CREDENTIALS");
+    if (user.role === "ADMIN" && env.ADMIN_EMAIL_2FA) {
+      await prisma.authToken.updateMany({
+        where: { userId: user.id, type: "ADMIN_LOGIN", usedAt: null },
+        data: { usedAt: new Date() }
+      });
+      const token = await issueOneTimeToken(user.id, "ADMIN_LOGIN", 10 * 60 * 1000);
+      const sent = await sendAccountEmail(
+        user.email,
+        "Confirm your Serhii Dev Studio admin sign-in",
+        `A sign-in to the Serhii Dev Studio admin panel was requested. Complete it within 10 minutes: ${env.WEB_ORIGIN}/admin/verify?token=${encodeURIComponent(token)}\n\nIf this was not you, do not open the link and change your password.`
+      ).catch(() => false);
+      if (!sent) {
+        await prisma.authToken.deleteMany({ where: { tokenHash: hash(token) } });
+        throw new AppError(
+          503,
+          "Admin verification email is temporarily unavailable",
+          "ADMIN_VERIFICATION_UNAVAILABLE"
+        );
+      }
+      return success(
+        res,
+        "Check your email to confirm this admin sign-in.",
+        { requiresAdminVerification: true },
+        202
+      );
+    }
     await createSession(user, req, res);
     return success(res, "Signed in", {
       user: { id: user.id, name: user.name, email: user.email, role: user.role }
     });
   } catch (e) {
     next(e);
+  }
+});
+router.post("/admin-verify", credentialLimiter, async (req, res, next) => {
+  try {
+    const input = z
+      .object({ token: z.string().min(32).max(200) })
+      .strict()
+      .parse(req.body);
+    const tokenHash = hash(input.token);
+    const record = await prisma.authToken.findUnique({
+      where: { tokenHash },
+      include: { user: true }
+    });
+    if (
+      !record ||
+      record.type !== "ADMIN_LOGIN" ||
+      record.usedAt ||
+      record.expiresAt.getTime() <= Date.now() ||
+      record.user.role !== "ADMIN" ||
+      record.user.status !== "ACTIVE" ||
+      record.user.deletedAt
+    )
+      throw new AppError(401, "Admin verification link is invalid or expired", "INVALID_TOKEN");
+    const claimed = await prisma.authToken.updateMany({
+      where: { id: record.id, usedAt: null, expiresAt: { gt: new Date() } },
+      data: { usedAt: new Date() }
+    });
+    if (claimed.count !== 1)
+      throw new AppError(401, "Admin verification link is invalid or expired", "INVALID_TOKEN");
+    await createSession(record.user, req, res);
+    return success(res, "Admin sign-in confirmed", {
+      user: {
+        id: record.user.id,
+        name: record.user.name,
+        email: record.user.email,
+        role: record.user.role
+      }
+    });
+  } catch (error) {
+    next(error);
   }
 });
 router.post("/refresh", async (req, res, next) => {
@@ -188,9 +270,12 @@ router.post("/logout", async (req, res, next) => {
     next(e);
   }
 });
-router.post("/forgot", async (req, res, next) => {
+router.post("/forgot", recoveryLimiter, async (req, res, next) => {
   try {
-    const input = z.object({ email: z.string().email() }).parse(req.body);
+    const input = z
+      .object({ email: z.string().trim().email().max(254) })
+      .strict()
+      .parse(req.body);
     const user = await prisma.user.findUnique({ where: { email: input.email.toLowerCase() } });
     if (user && user.status === "ACTIVE") {
       await prisma.authToken.updateMany({
@@ -209,9 +294,12 @@ router.post("/forgot", async (req, res, next) => {
     next(e);
   }
 });
-router.post("/resend", async (req, res, next) => {
+router.post("/resend", recoveryLimiter, async (req, res, next) => {
   try {
-    const input = z.object({ email: z.string().email() }).parse(req.body);
+    const input = z
+      .object({ email: z.string().trim().email().max(254) })
+      .strict()
+      .parse(req.body);
     const user = await prisma.user.findUnique({ where: { email: input.email.toLowerCase() } });
     if (user?.status === "PENDING" && !user.deletedAt) {
       await prisma.authToken.updateMany({
@@ -230,10 +318,14 @@ router.post("/resend", async (req, res, next) => {
     next(e);
   }
 });
-router.post("/reset", async (req, res, next) => {
+router.post("/reset", credentialLimiter, async (req, res, next) => {
   try {
     const input = z
-      .object({ token: z.string().min(20), password: z.string().min(12).max(128) })
+      .object({
+        token: z.string().min(20).max(200),
+        password: z.string().min(12).max(128).regex(/[a-z]/).regex(/[A-Z]/).regex(/[0-9]/)
+      })
+      .strict()
       .parse(req.body);
     const stored = await prisma.authToken.findUnique({ where: { tokenHash: hash(input.token) } });
     if (
@@ -272,7 +364,10 @@ router.post("/reset", async (req, res, next) => {
 });
 router.post("/verify-email", async (req, res, next) => {
   try {
-    const input = z.object({ token: z.string().min(20) }).parse(req.body);
+    const input = z
+      .object({ token: z.string().min(20).max(200) })
+      .strict()
+      .parse(req.body);
     const stored = await prisma.authToken.findUnique({ where: { tokenHash: hash(input.token) } });
     if (
       !stored ||
@@ -309,9 +404,33 @@ router.get("/me", authenticate, async (req, res, next) => {
   try {
     const user = await prisma.user.findFirst({
       where: { id: req.auth!.userId, deletedAt: null },
-      select: { id: true, name: true, email: true, role: true, status: true, avatarUrl: true }
+      select: {
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        status: true,
+        avatarUrl: true,
+        telegram: true,
+        discord: true,
+        country: true,
+        phone: true,
+        companyName: true,
+        billingAddressLine1: true,
+        billingAddressLine2: true,
+        billingCity: true,
+        billingRegion: true,
+        billingPostalCode: true,
+        billingCountry: true,
+        taxId: true
+      }
     });
-    if (!user) throw new AppError(404, "User not found");
+    if (!user || user.status !== "ACTIVE")
+      throw new AppError(401, "Session is no longer active", "SESSION_INACTIVE");
+    if (user.role !== req.auth!.role)
+      throw new AppError(401, "Session permissions changed", "SESSION_STALE");
     return success(res, "Profile loaded", user);
   } catch (e) {
     next(e);

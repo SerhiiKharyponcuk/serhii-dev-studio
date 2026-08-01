@@ -7,6 +7,34 @@ test("home page exposes primary conversion paths", async ({ page }) => {
   await expect(page.getByRole("link", { name: "View portfolio" })).toBeVisible();
 });
 
+const localeExpectations = [
+  ["en", "Language", "Project configurator"],
+  ["uk", "Мова", "Конфігуратор проєкту"],
+  ["de", "Sprache", "Projektkonfigurator"],
+  ["nl", "Taal", "Projectconfigurator"],
+  ["ru", "Язык", "Конфигуратор проекта"],
+  ["es", "Idioma", "Configurador de proyecto"],
+  ["fr", "Langue", "Configurateur de projet"],
+  ["pl", "Język", "Konfigurator projektu"],
+  ["it", "Lingua", "Configuratore del progetto"],
+  ["pt", "Idioma", "Configurador de projeto"]
+] as const;
+
+for (const [locale, languageLabel, configuratorLabel] of localeExpectations) {
+  test(`locale ${locale} covers the primary journey without overflow`, async ({ page }) => {
+    await page.goto(`/order?lang=${locale}`);
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await expect(page.getByText(configuratorLabel, { exact: true })).toBeVisible();
+    await expect(page.getByLabel(languageLabel).first()).toHaveValue(locale);
+    await expect(page.locator("select").first().locator("option")).toHaveCount(10);
+    const dimensions = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth
+    }));
+    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+  });
+}
+
 test("portfolio filters projects", async ({ page }) => {
   await page.goto("/portfolio");
   await page.getByRole("button", { name: "E-commerce" }).click();
@@ -17,7 +45,13 @@ test("portfolio filters projects", async ({ page }) => {
 test("order wizard validates required project information", async ({ page }) => {
   await page.goto("/order");
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("heading", { name: "2. Project information" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Select website features" })).toBeVisible();
+  const contentManagement = page.getByRole("checkbox", { name: /Content management/ });
+  await page.getByText("Content management", { exact: true }).click();
+  await expect(contentManagement).toBeChecked();
+  await expect(page.getByText("From $920", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "Tell me about the project" })).toBeVisible();
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("Please add at least 20 characters.")).toBeVisible();
 });
@@ -87,6 +121,39 @@ test("a pending client can request a new verification link", async ({ page }) =>
   );
 });
 
+test("admin password login requires the email second factor", async ({ page }) => {
+  await page.route("**/api/auth/login", async (route) => {
+    await route.fulfill({
+      status: 202,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: { requiresAdminVerification: true }
+      })
+    });
+  });
+  await page.goto("/login");
+  await page.getByRole("textbox", { name: "Email" }).fill("admin@example.test");
+  await page.getByLabel("Password").fill("Admin-password-2026!");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("status")).toHaveText(
+    "Check your email to confirm this admin sign-in."
+  );
+});
+
+test("one-time admin email link creates the protected session", async ({ page }) => {
+  await page.route("**/api/auth/admin-verify", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: { role: "ADMIN" } })
+    });
+  });
+  await page.goto(`/admin/verify?token=${"a".repeat(48)}`);
+  await expect(page.getByRole("heading", { name: "Admin sign-in confirmed" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open admin panel" })).toBeVisible();
+});
+
 test("client role cannot open the admin panel", async ({ page }) => {
   await page.route("**/api/auth/me", async (route) => {
     await route.fulfill({
@@ -99,6 +166,26 @@ test("client role cannot open the admin panel", async ({ page }) => {
           name: "Test Client",
           email: "client@example.com",
           role: "CLIENT"
+        }
+      })
+    });
+  });
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/dashboard$/);
+});
+
+test("support role cannot open the owner admin panel", async ({ page }) => {
+  await page.route("**/api/auth/me", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: {
+          id: "support-test",
+          name: "Support User",
+          email: "support@example.test",
+          role: "SUPPORT"
         }
       })
     });

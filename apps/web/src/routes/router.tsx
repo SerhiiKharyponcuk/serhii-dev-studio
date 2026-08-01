@@ -34,6 +34,9 @@ const AuthPage = lazy(async () => ({
 const VerifyEmailPage = lazy(async () => ({
   default: (await import("../pages/auth/AuthPages")).VerifyEmailPage
 }));
+const AdminVerifyPage = lazy(async () => ({
+  default: (await import("../pages/auth/AuthPages")).AdminVerifyPage
+}));
 const loadable = (content: ReactNode) => (
   <Suspense
     fallback={
@@ -78,6 +81,7 @@ export const router = createBrowserRouter([
       { path: "/resend-verification", element: loadable(<AuthPage mode="resend" />) },
       { path: "/reset-password", element: loadable(<AuthPage mode="reset" />) },
       { path: "/verify-email", element: loadable(<VerifyEmailPage />) },
+      { path: "/admin/verify", element: loadable(<AdminVerifyPage />) },
       { path: "/privacy", element: loadable(<SimplePage kind="Privacy" />) },
       { path: "/terms", element: loadable(<SimplePage kind="Terms" />) },
       { path: "/cookies", element: loadable(<SimplePage kind="Cookies" />) },

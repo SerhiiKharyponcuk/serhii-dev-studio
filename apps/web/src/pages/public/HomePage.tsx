@@ -2,10 +2,13 @@ import { motion } from "motion/react";
 import { ArrowRight, ArrowUpRight, Code2, Layers3, Rocket, ShieldCheck } from "lucide-react";
 import { Link } from "react-router";
 import { ProjectCard } from "../../components/ProjectCard";
+import { Reveal, Stagger, StaggerItem } from "../../components/Motion";
 import { projects, services, site } from "../../config/site";
+import { useI18n } from "../../i18n/I18nProvider";
 
 const process = ["Consultation", "Planning", "Development", "Testing", "Launch", "Support"];
 export function HomePage() {
+  const { t } = useI18n();
   return (
     <>
       <section className="section overflow-hidden pt-20">
@@ -17,22 +20,22 @@ export function HomePage() {
           >
             <span className="pill">
               <i className="status-dot" />
-              Available for freelance projects
+              {t("Available for freelance projects")}
             </span>
             <p className="eyebrow mt-8">{site.developer}</p>
             <h1 className="title mt-4">
-              Digital products that feel{" "}
+              {t("Digital products that feel")}{" "}
               <span className="bg-gradient-to-r from-indigo-300 via-blue-300 to-violet-300 bg-clip-text text-transparent">
-                effortless.
+                {t("effortless.")}
               </span>
             </h1>
-            <p className="muted mt-6 max-w-2xl text-lg leading-8">{site.description}</p>
+            <p className="muted mt-6 max-w-2xl text-lg leading-8">{t(site.description)}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link className="button button-primary" to="/order">
-                Start a project <ArrowRight size={17} />
+                {t("Start a project")} <ArrowRight size={17} />
               </Link>
               <Link className="button button-ghost" to="/portfolio">
-                View portfolio
+                {t("View portfolio")}
               </Link>
             </div>
             <div className="mt-9 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[#858798]">
@@ -68,21 +71,21 @@ export function HomePage() {
                 <p>
                   studio.<span className="text-cyan-300">build</span>({"{"} scalable: true {"}"});
                 </p>
-                <p className="mt-3 text-emerald-300">✓ Ready to launch</p>
+                <p className="mt-3 text-emerald-300">✓ {t("Ready to launch")}</p>
               </div>
             </div>
             <div className="glass absolute bottom-5 left-5 right-5 grid grid-cols-3 gap-3 rounded-2xl p-4 text-center">
               <div>
-                <b className="text-xl">Fast</b>
-                <p className="muted text-xs">Performance</p>
+                <b className="text-xl">{t("Fast")}</b>
+                <p className="muted text-xs">{t("Performance")}</p>
               </div>
               <div>
-                <b className="text-xl">Secure</b>
-                <p className="muted text-xs">Architecture</p>
+                <b className="text-xl">{t("Secure")}</b>
+                <p className="muted text-xs">{t("Architecture")}</p>
               </div>
               <div>
-                <b className="text-xl">Clear</b>
-                <p className="muted text-xs">Communication</p>
+                <b className="text-xl">{t("Clear")}</b>
+                <p className="muted text-xs">{t("Communication")}</p>
               </div>
             </div>
           </motion.div>
@@ -90,80 +93,95 @@ export function HomePage() {
       </section>
       <section className="section">
         <div className="shell">
-          <p className="eyebrow">Services</p>
-          <div className="mt-3 flex items-end justify-between gap-6">
-            <h2 className="section-title max-w-2xl">From first idea to reliable product.</h2>
-            <Link className="muted text-sm" to="/services">
-              All services →
-            </Link>
-          </div>
-          <div className="grid-auto mt-10">
+          <Reveal>
+            <p className="eyebrow">{t("Services")}</p>
+            <div className="mt-3 flex items-end justify-between gap-6">
+              <h2 className="section-title max-w-2xl">
+                {t("From first idea to reliable product.")}
+              </h2>
+              <Link className="muted text-sm" to="/services">
+                {t("All services")} →
+              </Link>
+            </div>
+          </Reveal>
+          <Stagger className="grid-auto mt-10">
             {services.slice(0, 6).map((s, i) => {
               const Icon = [Code2, Layers3, Rocket, ShieldCheck][i % 4]!;
               return (
-                <Link
-                  key={s.slug}
-                  className="glass card interactive-card group block"
-                  to={`/services/${s.slug}`}
-                >
-                  <Icon className="text-indigo-300" />
-                  <div className="mt-7 flex items-center justify-between gap-4">
-                    <h3 className="text-lg font-bold">{s.name}</h3>
-                    <ArrowUpRight
-                      className="text-[#727587] transition group-hover:text-white"
-                      size={18}
-                    />
-                  </div>
-                  <p className="muted mt-2 text-sm leading-6">{s.description}</p>
-                  <p className="mt-5 text-sm font-semibold">
-                    Starting from ${s.price.toLocaleString()}
-                  </p>
-                </Link>
+                <StaggerItem className="h-full" key={s.slug}>
+                  <Link
+                    className="glass card interactive-card group block h-full"
+                    to={`/services/${s.slug}`}
+                  >
+                    <Icon className="text-indigo-300" />
+                    <div className="mt-7 flex items-center justify-between gap-4">
+                      <h3 className="text-lg font-bold">{t(s.name)}</h3>
+                      <ArrowUpRight
+                        className="text-[#727587] transition group-hover:text-white"
+                        size={18}
+                      />
+                    </div>
+                    <p className="muted mt-2 text-sm leading-6">{t(s.description)}</p>
+                    <p className="mt-5 text-sm font-semibold">
+                      {t("Starting from")} ${s.price.toLocaleString()}
+                    </p>
+                  </Link>
+                </StaggerItem>
               );
             })}
-          </div>
+          </Stagger>
         </div>
       </section>
       <section className="section">
         <div className="shell">
-          <p className="eyebrow">Selected work</p>
-          <h2 className="section-title mt-3">Products built with purpose.</h2>
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
+          <Reveal>
+            <p className="eyebrow">{t("Selected work")}</p>
+            <h2 className="section-title mt-3">{t("Products built with purpose.")}</h2>
+          </Reveal>
+          <Stagger className="mt-10 grid gap-5 md:grid-cols-2">
             {projects.map((p) => (
-              <ProjectCard key={p.slug} project={p} />
+              <StaggerItem key={p.slug}>
+                <ProjectCard project={p} />
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         </div>
       </section>
       <section className="section">
         <div className="shell">
-          <p className="eyebrow">Process</p>
-          <h2 className="section-title mt-3">A clear path from brief to launch.</h2>
-          <div className="mt-10 grid gap-3 md:grid-cols-3">
+          <Reveal>
+            <p className="eyebrow">{t("Process")}</p>
+            <h2 className="section-title mt-3">{t("A clear path from brief to launch.")}</h2>
+          </Reveal>
+          <Stagger className="mt-10 grid gap-3 md:grid-cols-3">
             {process.map((s, i) => (
-              <div key={s} className="glass card flex items-center gap-4">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-indigo-500/20 text-sm text-indigo-200">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <b>{s}</b>
-              </div>
+              <StaggerItem key={s}>
+                <div className="glass card flex items-center gap-4">
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-indigo-500/20 text-sm text-indigo-200">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <b>{t(s)}</b>
+                </div>
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         </div>
       </section>
       <section className="section">
-        <div className="shell glass overflow-hidden rounded-[28px] p-8 text-center md:p-16">
-          <p className="eyebrow">Have a project in mind?</p>
+        <Reveal className="shell glass overflow-hidden rounded-[28px] p-8 text-center md:p-16">
+          <p className="eyebrow">{t("Have a project in mind?")}</p>
           <h2 className="section-title mx-auto mt-4 max-w-3xl">
-            Let’s turn it into a fast, thoughtful and scalable product.
+            {t("Let’s turn it into a fast, thoughtful and scalable product.")}
           </h2>
           <p className="muted mx-auto mt-5 max-w-xl">
-            Share your goals and receive a clear recommendation for scope, timeline and next steps.
+            {t(
+              "Share your goals and receive a clear recommendation for scope, timeline and next steps."
+            )}
           </p>
           <Link className="button button-primary mt-8" to="/order">
-            Discuss your project <ArrowRight size={17} />
+            {t("Discuss your project")} <ArrowRight size={17} />
           </Link>
-        </div>
+        </Reveal>
       </section>
     </>
   );

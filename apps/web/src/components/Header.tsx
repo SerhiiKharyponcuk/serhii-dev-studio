@@ -2,6 +2,8 @@ import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router";
 import { brand, site } from "../config/site";
+import { useI18n } from "../i18n/I18nProvider";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 const links = [
   ["Work", "/portfolio"],
@@ -12,6 +14,7 @@ const links = [
 ] as const;
 
 export function Header() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
 
@@ -34,7 +37,7 @@ export function Header() {
         <Link
           to="/"
           className="flex items-center gap-2 font-bold tracking-[-.03em]"
-          aria-label={`${site.name} home`}
+          aria-label={`${site.name} ${t("home")}`}
         >
           <span
             className="grid h-8 w-8 place-items-center rounded-lg text-sm"
@@ -46,7 +49,7 @@ export function Header() {
           </span>
           {site.name}
         </Link>
-        <nav className="desktop-only flex items-center gap-7" aria-label="Main navigation">
+        <nav className="desktop-only flex items-center gap-5" aria-label={t("Main navigation")}>
           {links.map(([label, href]) => (
             <NavLink
               key={href}
@@ -57,24 +60,25 @@ export function Header() {
               }
               to={href}
             >
-              {label}
+              {t(label)}
             </NavLink>
           ))}
         </nav>
-        <div className="desktop-only flex gap-2">
+        <div className="desktop-only flex items-center gap-2">
+          <LanguageSwitcher />
           <Link className="button button-ghost" to="/login">
-            Log in
+            {t("Log in")}
           </Link>
           <Link className="button button-primary" to="/order">
-            Start project
+            {t("Start project")}
           </Link>
         </div>
         <button
-          className="icon-button md:hidden"
+          className="icon-button header-menu-button"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-controls="mobile-navigation"
-          aria-label={open ? "Close navigation" : "Open navigation"}
+          aria-label={t(open ? "Close navigation" : "Open navigation")}
         >
           {open ? <X /> : <Menu />}
         </button>
@@ -82,8 +86,8 @@ export function Header() {
       {open && (
         <nav
           id="mobile-navigation"
-          className="shell grid gap-1 border-t border-white/8 py-4 md:hidden"
-          aria-label="Mobile navigation"
+          className="header-mobile-navigation shell grid gap-1 border-t border-white/8 py-4"
+          aria-label={t("Mobile navigation")}
         >
           {links.map(([label, href]) => (
             <NavLink
@@ -96,15 +100,18 @@ export function Header() {
               to={href}
               onClick={() => setOpen(false)}
             >
-              {label}
+              {t(label)}
             </NavLink>
           ))}
-          <div className="mt-2 grid grid-cols-2 gap-2 border-t border-white/8 pt-4">
+          <div className="mt-2 border-t border-white/8 pt-4">
+            <LanguageSwitcher compact />
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
             <Link className="button button-ghost" to="/login" onClick={() => setOpen(false)}>
-              Log in
+              {t("Log in")}
             </Link>
             <Link className="button button-primary" to="/order" onClick={() => setOpen(false)}>
-              Start project
+              {t("Start project")}
             </Link>
           </div>
         </nav>

@@ -63,6 +63,9 @@ type Order = {
   orderNumber: string;
   projectName: string;
   projectType: string;
+  buildApproach: string;
+  selectedFeatures: string[];
+  estimatedPriceCents: number | null;
   status: string;
   contactName: string;
   contactEmail: string;
@@ -991,7 +994,14 @@ export function AdminOrdersContent() {
                 <td className="px-4 py-3 font-semibold">{o.orderNumber}</td>
                 <td className="px-4 py-3">
                   {o.projectName}
-                  <span className="muted block text-xs">{o.projectType}</span>
+                  <span className="muted block text-xs">
+                    {o.projectType} · {humanize(o.buildApproach)}
+                  </span>
+                  {o.estimatedPriceCents !== null && (
+                    <span className="mt-1 block text-xs text-indigo-200">
+                      Estimate {money(o.estimatedPriceCents, "USD")}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   {o.contactName}
@@ -1089,6 +1099,11 @@ export function ClientOrdersContent() {
               <p className="muted mt-1 text-sm">
                 {order.orderNumber} · {order.projectType}
               </p>
+              {order.estimatedPriceCents !== null && (
+                <p className="mt-2 text-sm text-indigo-200">
+                  Planning estimate {money(order.estimatedPriceCents, "USD")}
+                </p>
+              )}
             </div>
             <time className="muted text-sm">{new Date(order.createdAt).toLocaleDateString()}</time>
           </div>
@@ -1239,6 +1254,7 @@ export function BankSettingsContent() {
 }
 
 export function ProfileContent() {
+  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["auth", "me"],
     queryFn: async () =>
@@ -1246,17 +1262,31 @@ export function ProfileContent() {
         await api.get<{
           data: {
             name: string;
+            firstName: string | null;
+            lastName: string | null;
             email: string;
             telegram: string | null;
             discord: string | null;
             country: string | null;
+            phone: string | null;
+            companyName: string | null;
+            billingAddressLine1: string | null;
+            billingAddressLine2: string | null;
+            billingCity: string | null;
+            billingRegion: string | null;
+            billingPostalCode: string | null;
+            billingCountry: string | null;
+            taxId: string | null;
           };
         }>("/auth/me")
       ).data.data
   });
   const mutation = useMutation({
     mutationFn: (data: Record<string, string>) => api.patch("/users/me", data),
-    onSuccess: () => toast.success("Profile updated."),
+    onSuccess: () => {
+      toast.success("Profile and billing details updated.");
+      void queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+    },
     onError: () => toast.error("Couldn’t update your profile. Try again.")
   });
   if (!query.data) return <State pending={query.isPending} error={query.isError} empty={false} />;
@@ -1271,26 +1301,136 @@ export function ProfileContent() {
       }}
     >
       <label className="label">
-        Name
-        <input className="input" name="name" defaultValue={query.data.name} required />
+        First name
+        <input
+          className="input"
+          name="firstName"
+          autoComplete="given-name"
+          defaultValue={query.data.firstName ?? query.data.name.split(" ")[0]}
+          required
+        />
+      </label>
+      <label className="label">
+        Last name
+        <input
+          className="input"
+          name="lastName"
+          autoComplete="family-name"
+          defaultValue={query.data.lastName ?? query.data.name.split(" ").slice(1).join(" ")}
+          required
+        />
       </label>
       <label className="label">
         Email
         <input className="input opacity-60" value={query.data.email} disabled />
       </label>
       <label className="label">
-        Telegram
-        <input className="input" name="telegram" defaultValue={query.data.telegram ?? ""} />
+        Phone
+        <input
+          className="input"
+          name="phone"
+          type="tel"
+          autoComplete="tel"
+          defaultValue={query.data.phone ?? ""}
+        />
       </label>
       <label className="label">
-        Discord
-        <input className="input" name="discord" defaultValue={query.data.discord ?? ""} />
+        Company
+        <input
+          className="input"
+          name="companyName"
+          autoComplete="organization"
+          defaultValue={query.data.companyName ?? ""}
+        />
+      </label>
+      <div className="border-t border-white/10 pt-5 sm:col-span-2">
+        <h2 className="font-bold">Billing details</h2>
+        <p className="muted mt-2 text-sm">
+          Used as the source for future contracts, receipts and invoices.
+        </p>
+      </div>
+      <label className="label sm:col-span-2">
+        Street and number
+        <input
+          className="input"
+          name="billingAddressLine1"
+          autoComplete="address-line1"
+          defaultValue={query.data.billingAddressLine1 ?? ""}
+        />
+      </label>
+      <label className="label sm:col-span-2">
+        Apartment, suite or unit
+        <input
+          className="input"
+          name="billingAddressLine2"
+          autoComplete="address-line2"
+          defaultValue={query.data.billingAddressLine2 ?? ""}
+        />
       </label>
       <label className="label">
-        Country
-        <input className="input" name="country" defaultValue={query.data.country ?? ""} />
+        City
+        <input
+          className="input"
+          name="billingCity"
+          autoComplete="address-level2"
+          defaultValue={query.data.billingCity ?? ""}
+        />
       </label>
-      <button className="button button-primary self-end" disabled={mutation.isPending}>
+      <label className="label">
+        State or region
+        <input
+          className="input"
+          name="billingRegion"
+          autoComplete="address-level1"
+          defaultValue={query.data.billingRegion ?? ""}
+        />
+      </label>
+      <label className="label">
+        Postal code
+        <input
+          className="input"
+          name="billingPostalCode"
+          autoComplete="postal-code"
+          defaultValue={query.data.billingPostalCode ?? ""}
+        />
+      </label>
+      <label className="label">
+        Billing country
+        <input
+          className="input"
+          name="billingCountry"
+          autoComplete="country-name"
+          defaultValue={query.data.billingCountry ?? query.data.country ?? ""}
+        />
+      </label>
+      <label className="label">
+        VAT / Tax ID
+        <input
+          className="input"
+          name="taxId"
+          autoComplete="off"
+          defaultValue={query.data.taxId ?? ""}
+        />
+      </label>
+      <details className="rounded-xl border border-white/10 p-4 sm:col-span-2">
+        <summary className="cursor-pointer font-semibold">Messaging profiles</summary>
+        <div className="mt-4 grid gap-5 sm:grid-cols-2">
+          <label className="label">
+            Telegram
+            <input className="input" name="telegram" defaultValue={query.data.telegram ?? ""} />
+          </label>
+          <label className="label">
+            Discord
+            <input className="input" name="discord" defaultValue={query.data.discord ?? ""} />
+          </label>
+        </div>
+      </details>
+      <input
+        type="hidden"
+        name="country"
+        value={query.data.country ?? query.data.billingCountry ?? ""}
+      />
+      <button className="button button-primary sm:col-span-2" disabled={mutation.isPending}>
         {mutation.isPending ? <LoadingLabel>Saving</LoadingLabel> : "Save profile"}
       </button>
     </form>

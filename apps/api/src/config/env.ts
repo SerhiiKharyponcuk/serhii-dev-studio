@@ -25,6 +25,10 @@ const schema = z
     JWT_REFRESH_SECRET: z.string().min(32),
     ACCESS_TOKEN_TTL: z.enum(["5m", "10m", "15m", "30m"]).default("15m"),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+    ADMIN_EMAIL_2FA: z
+      .enum(["true", "false"])
+      .default(process.env.NODE_ENV === "production" ? "true" : "false")
+      .transform((value) => value === "true"),
     RESEND_API_KEY: optionalString,
     SMTP_HOST: optionalString,
     SMTP_PORT: z.coerce.number().int().positive().default(587),
@@ -81,6 +85,13 @@ const schema = z
         code: "custom",
         path: ["FILE_STORAGE"],
         message: "Production requires S3-compatible file storage and S3_BUCKET"
+      });
+    }
+    if (!value.ADMIN_EMAIL_2FA) {
+      context.addIssue({
+        code: "custom",
+        path: ["ADMIN_EMAIL_2FA"],
+        message: "Production requires email second-factor verification for admin sign-in"
       });
     }
     if (!value.S3_ACCESS_KEY_ID || !value.S3_SECRET_ACCESS_KEY) {

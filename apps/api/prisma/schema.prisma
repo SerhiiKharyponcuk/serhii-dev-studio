@@ -73,17 +73,29 @@ enum FileCategory {
 enum AuthTokenType {
   PASSWORD_RESET
   EMAIL_VERIFICATION
+  ADMIN_LOGIN
 }
 
 model User {
   id String @id @default(cuid())
   name String
+  firstName String?
+  lastName String?
   email String @unique
   passwordHash String
   avatarUrl String?
   telegram String?
   discord String?
   country String?
+  phone String?
+  companyName String?
+  billingAddressLine1 String?
+  billingAddressLine2 String?
+  billingCity String?
+  billingRegion String?
+  billingPostalCode String?
+  billingCountry String?
+  taxId String?
   role Role @default(CLIENT)
   status AccountStatus @default(PENDING)
   emailVerifiedAt DateTime?
@@ -138,6 +150,9 @@ model Order {
   id String @id @default(cuid())
   orderNumber String @unique
   projectType String
+  buildApproach String @default("NEW_WEBSITE")
+  selectedFeatures String[] @default([])
+  estimatedPriceCents Int?
   projectName String
   companyName String?
   description String
@@ -147,10 +162,20 @@ model Order {
   preferredDeadline DateTime?
   deadlineFlexible Boolean @default(true)
   contactName String
+  contactFirstName String?
+  contactLastName String?
   contactEmail String
+  phone String?
   telegram String?
   discord String?
   country String
+  billingCompanyName String?
+  billingAddressLine1 String?
+  billingAddressLine2 String?
+  billingCity String?
+  billingRegion String?
+  billingPostalCode String?
+  taxId String?
   status OrderStatus @default(NEW)
   notes String?
   clientId String?
@@ -297,6 +322,7 @@ model Invoice {
   invoiceNumber String @unique
   clientName String
   clientEmail String
+  billingDetails Json?
   description String
   subtotal Int
   tax Int @default(0)

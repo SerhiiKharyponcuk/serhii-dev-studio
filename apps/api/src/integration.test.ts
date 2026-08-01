@@ -105,6 +105,14 @@ describe.runIf(runDatabaseTests).sequential("PostgreSQL business flows", () => {
     }
   });
 
+  it("revokes client-area access immediately when an account is suspended", async () => {
+    await prisma.user.update({ where: { id: clientId }, data: { status: "BLOCKED" } });
+    const response = await clientAgent.get("/api/client/overview");
+    expect(response.status).toBe(401);
+    expect(response.body).toMatchObject({ error: { code: "SESSION_INACTIVE" } });
+    await prisma.user.update({ where: { id: clientId }, data: { status: "ACTIVE" } });
+  });
+
   it("allows a refresh token to be rotated only once", async () => {
     expect(clientRefreshCookie).not.toBe("");
     const refresh = () =>
@@ -126,7 +134,7 @@ describe.runIf(runDatabaseTests).sequential("PostgreSQL business flows", () => {
     const response = await request(app)
       .post("/api/auth/register")
       .set("Origin", origin)
-      .send({ name: "Pending Client", email, password });
+      .send({ firstName: "Pending", lastName: "Client", email, password });
 
     expect(response.status).toBe(201);
     expect(response.headers["set-cookie"]).toBeUndefined();
@@ -163,12 +171,15 @@ describe.runIf(runDatabaseTests).sequential("PostgreSQL business flows", () => {
       .set("Origin", origin)
       .send({
         projectType: "Business Website",
+        buildApproach: "NEW_WEBSITE",
+        selectedFeatures: ["cms", "advanced-seo"],
         projectName: "Integration order",
         description: "A sufficiently detailed project request created by the integration suite.",
         requiredFeatures: "Responsive pages, contact workflow and project dashboard.",
         budgetRange: "$2,000–$4,000",
         deadlineFlexible: true,
-        name: "Prospective Client",
+        firstName: "Prospective",
+        lastName: "Client",
         email: `lead-${suffix}@example.test`,
         country: "Netherlands"
       });

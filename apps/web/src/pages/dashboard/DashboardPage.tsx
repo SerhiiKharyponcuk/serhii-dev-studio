@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { api } from "../../lib/api";
+import { useI18n } from "../../i18n/I18nProvider";
 import { ErrorState, LoadingState } from "../../components/AsyncState";
 import { AdminStatsChart } from "../../features/dashboard/AdminStatsChart";
 import {
@@ -61,6 +62,7 @@ const adminItems = [
   ["Audit Logs", "/admin/audit-logs", Receipt]
 ] as const;
 export function DashboardPage({ admin = false }: { admin?: boolean }) {
+  const { t } = useI18n();
   const { pathname } = useLocation();
   const [navigationOpen, setNavigationOpen] = useState(false);
   const navigation = admin ? adminItems : items;
@@ -163,13 +165,15 @@ export function DashboardPage({ admin = false }: { admin?: boolean }) {
       <aside className="dashboard-sidebar border-r border-white/8 p-4 md:sticky md:top-[72px] md:h-[calc(100vh-72px)] md:overflow-y-auto md:p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <b>{admin ? "Studio Admin" : "Client workspace"}</b>
-            <p className="muted mt-0.5 text-xs md:hidden">{label}</p>
+            <b>{t(admin ? "Studio Admin" : "Client workspace")}</b>
+            <p className="muted mt-0.5 text-xs md:hidden">{t(label)}</p>
           </div>
           <button
             className="icon-button md:hidden"
             type="button"
-            aria-label={navigationOpen ? "Close workspace navigation" : "Open workspace navigation"}
+            aria-label={t(
+              navigationOpen ? "Close workspace navigation" : "Open workspace navigation"
+            )}
             aria-controls="workspace-navigation"
             aria-expanded={navigationOpen}
             onClick={() => setNavigationOpen((value) => !value)}
@@ -180,7 +184,7 @@ export function DashboardPage({ admin = false }: { admin?: boolean }) {
         <nav
           id="workspace-navigation"
           className={`${navigationOpen ? "grid" : "hidden"} mt-4 max-h-[60vh] gap-1 overflow-y-auto border-t border-white/8 pt-4 md:mt-7 md:grid md:max-h-none md:overflow-visible md:border-0 md:pt-0`}
-          aria-label={admin ? "Admin navigation" : "Client navigation"}
+          aria-label={t(admin ? "Admin navigation" : "Client navigation")}
         >
           {navigation.map(([name, path, Icon]) => (
             <NavLink
@@ -196,14 +200,14 @@ export function DashboardPage({ admin = false }: { admin?: boolean }) {
               }
             >
               <Icon size={17} />
-              {name}
+              {t(name)}
             </NavLink>
           ))}
         </nav>
       </aside>
       <section className="p-5 md:p-9">
-        <p className="eyebrow">{admin ? "Operations" : "Workspace"}</p>
-        <h1 className="mt-2 text-3xl font-bold">{label}</h1>
+        <p className="eyebrow">{t(admin ? "Operations" : "Workspace")}</p>
+        <h1 className="mt-2 text-3xl font-bold">{t(label)}</h1>
         {section ??
           (query.isPending ? (
             <LoadingState className="mt-8" title="Loading dashboard data" />
@@ -218,7 +222,7 @@ export function DashboardPage({ admin = false }: { admin?: boolean }) {
               <div className="grid-auto mt-8">
                 {cards.map(([title, value]) => (
                   <article key={title} className="glass card">
-                    <p className="muted text-sm">{title}</p>
+                    <p className="muted text-sm">{t(title)}</p>
                     <p className="mt-3 text-3xl font-bold">{value}</p>
                   </article>
                 ))}
@@ -234,12 +238,12 @@ export function DashboardPage({ admin = false }: { admin?: boolean }) {
               )}
               <div className="glass card mt-6">
                 <h2 className="text-lg font-bold">
-                  {Number(cards[0]?.[1]) > 0 ? "Project workspace is ready" : "No items yet"}
+                  {t(Number(cards[0]?.[1]) > 0 ? "Project workspace is ready" : "No items yet")}
                 </h2>
                 <p className="muted mt-2 text-sm">
                   {Number(cards[0]?.[1]) > 0
-                    ? "Open My Projects to review current progress and milestones."
-                    : "New project activity will be shown here as soon as it is created."}
+                    ? t("Open My Projects to review current progress and milestones.")
+                    : t("New project activity will be shown here as soon as it is created.")}
                 </p>
               </div>
             </>

@@ -25,7 +25,6 @@ export function ProtectedRoute({ admin = false }: { admin?: boolean }) {
       </div>
     );
   if (query.isError) return <Navigate to="/login" replace />;
-  if (admin && !["ADMIN", "SUPPORT"].includes(query.data.role))
-    return <Navigate to="/dashboard" replace />;
+  if (admin && query.data.role !== "ADMIN") return <Navigate to="/dashboard" replace />;
   return <Outlet context={{ user: query.data }} />;
 }

@@ -51,6 +51,12 @@ body::before {
     linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: linear-gradient(to bottom, black, transparent 75%);
+  animation: ambient-grid 24s linear infinite;
+}
+@keyframes ambient-grid {
+  to {
+    background-position: 48px 48px;
+  }
 }
 a {
   color: inherit;
@@ -90,6 +96,50 @@ button {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+.language-switcher {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-control);
+  padding: 0 0.55rem 0 0.7rem;
+  color: #c3c5d2;
+  background: rgba(255, 255, 255, 0.035);
+  transition:
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease;
+}
+.language-switcher:hover {
+  border-color: rgba(139, 141, 255, 0.35);
+  color: white;
+  background: rgba(255, 255, 255, 0.06);
+}
+.language-switcher:focus-within {
+  outline: 2px solid #8b8dff;
+  outline-offset: 3px;
+}
+.language-switcher select {
+  flex: 1;
+  min-width: 7.5rem;
+  max-width: 9.5rem;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.header-menu-button,
+.header-mobile-navigation {
+  display: none;
+}
+.language-switcher option {
+  color: white;
+  background: #111321;
 }
 :focus-visible {
   outline: 2px solid #8b8dff;
@@ -140,6 +190,8 @@ button:disabled {
   font-size: 0.82rem;
 }
 .button {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -162,6 +214,14 @@ button:disabled {
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: white;
   box-shadow: 0 12px 35px rgba(99, 102, 241, 0.3);
+}
+.button-primary::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  transform: translateX(-130%) skewX(-20deg);
+  background: linear-gradient(90deg, transparent 35%, rgba(255, 255, 255, 0.24), transparent 65%);
+  transition: transform 600ms ease;
 }
 .button-ghost {
   background: rgba(255, 255, 255, 0.04);
@@ -241,6 +301,75 @@ textarea.input {
   color: #77798c;
   font-size: 0.75rem;
   font-weight: 450;
+}
+.honeypot-field {
+  display: none;
+}
+.choice-card {
+  position: relative;
+  display: flex;
+  min-height: 9rem;
+  cursor: pointer;
+  flex-direction: column;
+  gap: 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-control);
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.025);
+  transition:
+    transform var(--duration-base) ease,
+    border-color var(--duration-base) ease,
+    background-color var(--duration-base) ease,
+    box-shadow var(--duration-base) ease;
+}
+.choice-card.compact {
+  min-height: 3.75rem;
+  justify-content: center;
+  padding-left: 3rem;
+}
+.choice-card.feature-card {
+  min-height: 11rem;
+}
+.choice-check {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  display: grid;
+  width: 1.4rem;
+  height: 1.4rem;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  color: transparent;
+  background: rgba(255, 255, 255, 0.04);
+  transition: all var(--duration-fast) ease;
+}
+.choice-card:has(input:checked) {
+  border-color: rgba(139, 141, 255, 0.7);
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.16), rgba(139, 92, 246, 0.06));
+  box-shadow:
+    inset 0 0 0 1px rgba(139, 141, 255, 0.1),
+    0 16px 40px rgba(20, 20, 55, 0.2);
+}
+.choice-card:has(input:checked) .choice-check {
+  border-color: #8b8dff;
+  color: white;
+  background: #6366f1;
+  transform: scale(1.08);
+}
+.choice-card:has(input:focus-visible) {
+  outline: 2px solid #8b8dff;
+  outline-offset: 3px;
+}
+.estimate-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgba(139, 141, 255, 0.24);
+  border-radius: var(--radius-control);
+  padding: 1rem 1.1rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.13), rgba(139, 92, 246, 0.06));
 }
 .icon-button {
   display: inline-grid;
@@ -327,6 +456,13 @@ input[type="file"].input::file-selector-button {
   border-radius: 50%;
   background: #48d597;
   box-shadow: 0 0 18px #48d597;
+  animation: status-pulse 2.4s ease-in-out infinite;
+}
+@keyframes status-pulse {
+  50% {
+    opacity: 0.65;
+    box-shadow: 0 0 7px #48d597;
+  }
 }
 .project-art {
   min-height: 210px;
@@ -344,6 +480,7 @@ input[type="file"].input::file-selector-button {
   background: linear-gradient(135deg, var(--a, #6366f1), var(--b, #22d3ee));
   filter: saturate(1.15);
   box-shadow: 0 0 70px color-mix(in srgb, var(--a), transparent 45%);
+  transition: transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .dashboard-grid {
   display: grid;
@@ -359,9 +496,20 @@ input[type="file"].input::file-selector-button {
     border-color: rgba(139, 141, 255, 0.34);
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
   }
+  .interactive-card:hover .project-art::after {
+    transform: rotate(-2deg) scale(1.06);
+  }
+  .choice-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(139, 141, 255, 0.32);
+    background-color: rgba(255, 255, 255, 0.045);
+  }
   .button:hover:not(:disabled) {
     transform: translateY(-2px);
     border-color: rgba(255, 255, 255, 0.25);
+  }
+  .button-primary:hover:not(:disabled)::after {
+    transform: translateX(130%) skewX(-20deg);
   }
   .input:hover:not(:disabled) {
     border-color: rgba(255, 255, 255, 0.2);
@@ -391,6 +539,15 @@ input[type="file"].input::file-selector-button {
   }
   .desktop-only {
     display: none !important;
+  }
+  .header-menu-button {
+    display: inline-grid;
+  }
+  .header-mobile-navigation {
+    display: grid;
+  }
+  .language-switcher select {
+    max-width: none;
   }
 }
 @media (min-width: 48rem) {

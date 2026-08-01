@@ -6,6 +6,8 @@
 - Validate CSRF protection with the final frontend/API domains.
 - Configure strict CORS, HTTPS-only cookies and trusted proxy settings.
 - Test password reset and email verification tokens for single use and expiry.
+- Verify production admin login requires the one-time email factor and that its link expires after
+  ten minutes and cannot be reused.
 - Enforce upload MIME, extension, signature and size allowlists.
 - Confirm uploaded objects cannot execute and cannot be accessed without authorization.
 - Encrypt sensitive settings and mask bank/account values.

@@ -29,7 +29,7 @@ export const services = [
   {
     slug: "landing-page",
     name: "Landing Page",
-    price: 750,
+    price: 600,
     time: "1–2 weeks",
     description: "A focused, conversion-ready page for a product, service or campaign.",
     features: ["Responsive custom UI", "Lead capture form", "SEO foundation", "Analytics-ready"]
@@ -37,7 +37,7 @@ export const services = [
   {
     slug: "business-website",
     name: "Business Website",
-    price: 1500,
+    price: 1200,
     time: "3–5 weeks",
     description: "A polished multi-page presence that builds credibility and generates enquiries.",
     features: ["Content architecture", "CMS-ready structure", "Contact workflows", "Technical SEO"]
@@ -45,7 +45,7 @@ export const services = [
   {
     slug: "portfolio-website",
     name: "Portfolio Website",
-    price: 900,
+    price: 720,
     time: "2–3 weeks",
     description: "A memorable portfolio that presents your expertise and work with clarity.",
     features: ["Project case studies", "Motion design", "Responsive gallery", "Contact funnel"]
@@ -53,7 +53,7 @@ export const services = [
   {
     slug: "online-shop",
     name: "Online Shop",
-    price: 2800,
+    price: 2240,
     time: "5–9 weeks",
     description: "A scalable storefront prepared for products, checkout and operations.",
     features: [
@@ -66,7 +66,7 @@ export const services = [
   {
     slug: "admin-dashboard",
     name: "Admin Dashboard",
-    price: 2200,
+    price: 1760,
     time: "4–7 weeks",
     description: "An efficient operations interface for data, workflows and team decisions.",
     features: ["Role-based access", "Tables and filters", "Charts", "Audit-ready actions"]
@@ -74,7 +74,7 @@ export const services = [
   {
     slug: "client-dashboard",
     name: "Client Dashboard",
-    price: 2400,
+    price: 1920,
     time: "4–8 weeks",
     description: "A secure client area for projects, files, messages and payments.",
     features: ["Authentication", "Project tracking", "Files and messages", "Billing views"]
@@ -82,7 +82,7 @@ export const services = [
   {
     slug: "minecraft-store",
     name: "Minecraft Store",
-    price: 1800,
+    price: 1440,
     time: "3–6 weeks",
     description: "A distinctive, mobile-first store experience for a Minecraft community.",
     features: ["Storefront UI", "Rank presentation", "Server integration-ready", "Admin tools"]
@@ -90,7 +90,7 @@ export const services = [
   {
     slug: "custom-web-application",
     name: "Custom Web Application",
-    price: 3500,
+    price: 2800,
     time: "6–12+ weeks",
     description: "Purpose-built software designed around your workflow and growth plans.",
     features: ["Product discovery", "Scalable API", "Database design", "Secure deployment"]
@@ -98,7 +98,7 @@ export const services = [
   {
     slug: "website-redesign",
     name: "Website Redesign",
-    price: 1200,
+    price: 960,
     time: "2–5 weeks",
     description: "A strategic visual and technical refresh without losing what already works.",
     features: ["UX audit", "Design refresh", "Performance work", "Migration plan"]
@@ -106,7 +106,7 @@ export const services = [
   {
     slug: "website-maintenance",
     name: "Website Maintenance",
-    price: 180,
+    price: 144,
     time: "Monthly",
     description: "Reliable improvements, monitoring and technical care after launch.",
     features: ["Updates", "Bug fixes", "Performance checks", "Priority support"]
@@ -155,21 +155,21 @@ export const projects = [
 export const pricing = [
   {
     name: "Basic",
-    price: "$750",
+    price: "$600",
     description: "For a landing page, personal page or compact brochure site.",
     features: ["Up to 3 pages", "Responsive design", "Contact form", "SEO essentials"],
     popular: false
   },
   {
     name: "Standard",
-    price: "$1,500",
+    price: "$1,200",
     description: "For a business website, portfolio or integration-rich multi-page site.",
     features: ["Up to 8 pages", "Custom UI system", "Forms and integrations", "Performance setup"],
     popular: true
   },
   {
     name: "Premium",
-    price: "$3,500",
+    price: "$2,800",
     description: "For a shop, client portal, admin panel or complex web application.",
     features: ["Product architecture", "Secure accounts", "Custom backend", "Deployment support"],
     popular: false

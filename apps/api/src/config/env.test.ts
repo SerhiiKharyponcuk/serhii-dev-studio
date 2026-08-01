@@ -54,4 +54,16 @@ describe("production environment validation", () => {
       "Production requires S3-compatible file storage"
     );
   });
+
+  it("rejects disabled admin second-factor verification in production", async () => {
+    process.env = {
+      ...originalEnvironment,
+      ...productionEnvironment,
+      ADMIN_EMAIL_2FA: "false"
+    };
+
+    await expect(import("./env.js")).rejects.toThrow(
+      "Production requires email second-factor verification"
+    );
+  });
 });

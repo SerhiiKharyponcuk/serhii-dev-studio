@@ -13,16 +13,16 @@ if (!databaseUrl || !adminPassword || !clientPassword)
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
 
 const serviceSeed = [
-  ["landing-page", "Landing Page", 750, "1–2 weeks"],
-  ["business-website", "Business Website", 1500, "3–5 weeks"],
-  ["portfolio-website", "Portfolio Website", 900, "2–3 weeks"],
-  ["online-shop", "Online Shop", 2800, "5–9 weeks"],
-  ["admin-dashboard", "Admin Dashboard", 2200, "4–7 weeks"],
-  ["client-dashboard", "Client Dashboard", 2400, "4–8 weeks"],
-  ["minecraft-store", "Minecraft Store", 1800, "3–6 weeks"],
-  ["custom-web-application", "Custom Web Application", 3500, "6–12+ weeks"],
-  ["website-redesign", "Website Redesign", 1200, "2–5 weeks"],
-  ["website-maintenance", "Website Maintenance", 180, "Monthly"]
+  ["landing-page", "Landing Page", 600, "1–2 weeks"],
+  ["business-website", "Business Website", 1200, "3–5 weeks"],
+  ["portfolio-website", "Portfolio Website", 720, "2–3 weeks"],
+  ["online-shop", "Online Shop", 2240, "5–9 weeks"],
+  ["admin-dashboard", "Admin Dashboard", 1760, "4–7 weeks"],
+  ["client-dashboard", "Client Dashboard", 1920, "4–8 weeks"],
+  ["minecraft-store", "Minecraft Store", 1440, "3–6 weeks"],
+  ["custom-web-application", "Custom Web Application", 2800, "6–12+ weeks"],
+  ["website-redesign", "Website Redesign", 960, "2–5 weeks"],
+  ["website-maintenance", "Website Maintenance", 144, "Monthly"]
 ] as const;
 const portfolioSeed = [
   ["waves-arcade", "Waves Arcade", "Web Application"],

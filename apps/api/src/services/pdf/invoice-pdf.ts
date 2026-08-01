@@ -4,6 +4,7 @@ type InvoiceData = {
   invoiceNumber: string;
   clientName: string;
   clientEmail: string;
+  billingDetails?: unknown;
   description: string;
   subtotal: number;
   tax: number;
@@ -15,6 +16,15 @@ type InvoiceData = {
 const money = (amount: number, currency: string) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount / 100);
 export function createInvoicePdf(invoice: InvoiceData) {
+  const billing =
+    invoice.billingDetails && typeof invoice.billingDetails === "object"
+      ? (invoice.billingDetails as Record<string, unknown>)
+      : {};
+  const billingLine = (...keys: string[]) =>
+    keys
+      .map((key) => billing[key])
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+      .join(", ");
   return new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",
@@ -37,6 +47,14 @@ export function createInvoicePdf(invoice: InvoiceData) {
       .text(`Client: ${invoice.clientName}`)
       .text(`Email: ${invoice.clientEmail}`)
       .text(`Due: ${invoice.dueDate.toISOString().slice(0, 10)}`);
+    const company = billingLine("companyName");
+    const address = billingLine("addressLine1", "addressLine2");
+    const locality = billingLine("postalCode", "city", "region", "country");
+    const taxId = billingLine("taxId");
+    if (company) doc.text(`Company: ${company}`);
+    if (address) doc.text(address);
+    if (locality) doc.text(locality);
+    if (taxId) doc.text(`Tax ID: ${taxId}`);
     doc.moveDown().fontSize(12).text(invoice.description).moveDown();
     for (const item of invoice.items)
       doc

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Star } from "lucide-react";
 import { api } from "../../lib/api";
 import { EmptyState, ErrorState, LoadingState } from "../../components/AsyncState";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type Review = {
   id: string;
@@ -14,6 +15,7 @@ type Review = {
 };
 
 export function ReviewsPage() {
+  const { t } = useI18n();
   const query = useQuery({
     queryKey: ["public-reviews"],
     queryFn: async () => (await api.get<{ data: Review[] }>("/reviews")).data.data
@@ -21,11 +23,12 @@ export function ReviewsPage() {
   return (
     <section className="section">
       <div className="shell text-center">
-        <p className="eyebrow">Client reviews</p>
-        <h1 className="section-title mt-4">Feedback from completed work.</h1>
+        <p className="eyebrow">{t("Client reviews")}</p>
+        <h1 className="section-title mt-4">{t("Feedback from completed work.")}</h1>
         <p className="muted mx-auto mt-5 max-w-2xl">
-          Reviews are published only after the related project is completed and the feedback is
-          moderated.
+          {t(
+            "Reviews are published only after the related project is completed and the feedback is moderated."
+          )}
         </p>
       </div>
       <div className="shell mt-12 grid-auto">
@@ -41,7 +44,7 @@ export function ReviewsPage() {
             <article className="glass card" key={review.id}>
               <div
                 className="flex gap-1 text-amber-300"
-                aria-label={`${review.rating} out of 5 stars`}
+                aria-label={`${review.rating} ${t("out of 5 stars")}`}
               >
                 {Array.from({ length: review.rating }, (_, index) => (
                   <Star key={index} size={16} fill="currentColor" />

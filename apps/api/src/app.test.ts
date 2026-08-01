@@ -24,6 +24,24 @@ describe("API shell", () => {
     expect(response.body).not.toHaveProperty("stack");
   });
 
+  it("rejects unsupported request content types before parsing a body", async () => {
+    const { app } = await import("./app.js");
+    const response = await request(app)
+      .post("/api/contact")
+      .set("Origin", "http://localhost:5173")
+      .set("Content-Type", "text/plain")
+      .send("untrusted body");
+    expect(response.status).toBe(415);
+    expect(response.body).toMatchObject({ error: { code: "UNSUPPORTED_MEDIA_TYPE" } });
+  });
+
+  it("rejects excessively long request URLs", async () => {
+    const { app } = await import("./app.js");
+    const response = await request(app).get(`/api/${"a".repeat(2_050)}`);
+    expect(response.status).toBe(414);
+    expect(response.body).toMatchObject({ error: { code: "URL_TOO_LONG" } });
+  });
+
   it("rejects unauthenticated private access", async () => {
     const { app } = await import("./app.js");
     const response = await request(app).get("/api/client/projects");
